@@ -1,0 +1,62 @@
+# Robô de atualização: busca os dados na API do Tesouro (SICONFI) e grava na pasta data/ do repositório.
+# Roda sozinho toda segunda-feira e também pelo botão "Run workflow", na aba Actions.
+# O Streamlit Community Cloud percebe a mudança nos dados e atualiza o portal.
+name: Atualizar dados
+
+on:
+  schedule:
+    - cron: "17 9 * * 1" # segundas-feiras, 09:17 UTC = 06:17 em Brasília
+  workflow_dispatch:
+    inputs:
+      completo:
+        description: "Recoletar tudo desde 2019 (demora mais; use só se os dados parecerem errados)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # necessário para gravar os dados no repositório
+
+concurrency:
+  group: atualizar-dados
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Baixar o projeto
+        uses: actions/checkout@v4
+
+      - name: Preparar o Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar as bibliotecas
+        run: pip install -r requirements.txt
+
+      - name: Coletar os dados na API do Tesouro
+        id: coleta
+        continue-on-error: true # grava o que conseguiu coletar mesmo se uma consulta falhar
+        run: python coletar.py ${{ inputs.completo && '--completo' || '' }}
+
+      - name: Gravar os dados no repositório
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "Nada mudou nos dados."
+          else
+            git commit -m "Atualiza dados do Tesouro ($(date -u +%Y-%m-%d))"
+            git pull --rebase
+            git push
+          fi
+
+      - name: Avisar se a coleta teve falhas
+        if: steps.coleta.outcome == 'failure'
+        run: |
+          echo "::error::A coleta teve falhas. Abra o passo 'Coletar os dados na API do Tesouro' para ver qual consulta falhou."
+          exit 1
