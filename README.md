@@ -39,9 +39,13 @@ quando um código não aparece, o indicador fica em branco – nada é estimado.
   transparência; download em CSV.
 - **Compras**: licitações, dispensas e contratos do PNCP, com pontos de atenção (emergenciais, várias dispensas com o
   mesmo fornecedor, prazo curto para propostas, licitações sem desconto, contratação direta, concentração),
-  propostas abertas e links para cada publicação oficial.
+  quem foi contratado em cada licitação ou dispensa (quando o contrato já está no PNCP), propostas abertas e links
+  para cada publicação oficial.
 - **Comparar cidades**: mapa do Paraná (clique para escolher a cidade) e a sua cidade ao lado de outra em educação,
-  saúde, transporte, salários, investimentos e receita por habitante, com a posição entre os 399 municípios.
+  saúde, transporte, salários, investimentos e receita por habitante. Para cada indicador, uma faixa do 1º ao
+  último lugar (em cinco partes, nas cores do mapa) marca a posição das duas cidades, e o ranking completo fica numa
+  tabela. Os percentuais de educação e saúde vêm do resumo do RREO (Anexo 14), que só parte dos municípios
+  preenche: em 2025, cerca de 220 de 393.
 - **Sobre os dados**: fontes, atualização, conferência MSC × RREO, critérios dos pontos de atenção, LGPD e downloads.
 
 Todas as páginas abrem com o cabeçalho **"Planalto com geada"** (campos com araucárias, geada e sol nascendo). No
@@ -69,16 +73,29 @@ merece acompanhamento. As regras ficam em `despesas/alertas.py` e são explicada
 
 ## Dados pessoais (LGPD)
 
-Fornecedores pessoa física e microempreendedores individuais (razão social terminada no CPF) são gravados **sem
-nome e sem documento**, e números com formato de CPF em textos livres são mascarados – já na coleta, então os CSVs
-publicados no GitHub também não têm esses dados. A publicação completa continua no PNCP.
+Fornecedores pessoa física e microempreendedores individuais (MEI) são gravados **com o nome e sem nenhum número
+de documento** (nem CPF, nem o CNPJ do MEI; o CPF que aparece no nome de MEIs antigos é retirado), e números com
+formato de CPF em textos livres são mascarados – já na coleta, então os CSVs publicados no GitHub também não têm
+esses números. No portal, os nomes aparecem só nas tabelas; nos rankings ("Maiores fornecedores") e nos pontos de
+atenção, pessoas físicas e MEI ficam somados num grupo só. A publicação completa continua no PNCP.
+
+Até a versão 1.2.2 esses fornecedores eram gravados sem nome. Na primeira coleta da 1.2.3 o robô busca de novo,
+uma vez, os contratos já gravados, para trocar o "dado protegido" pelo nome (`renovar_contratos` no
+`metadados.json` mostra o que ainda falta).
 
 ## Atualização e tempo de coleta
 
 O robô roda `python coletar.py` toda segunda-feira. A coleta é incremental e limitada a 70 minutos
 (`--tempo-max`); o que não couber continua na execução seguinte. Na **primeira execução da versão 1.2** o robô
-busca o histórico de compras (~300 consultas ao PNCP) e os relatórios dos 399 municípios (~2.000 consultas ao
-SICONFI): rode o robô **duas vezes** para completar. Depois disso, cada execução leva poucos minutos.
+busca o histórico de compras (~400 consultas ao PNCP, que responde devagar) e os relatórios dos 399 municípios
+(~2.000 consultas ao SICONFI): rode o robô **duas ou três vezes** para completar. Depois disso, cada execução leva
+poucos minutos.
+
+No PNCP, a coleta vai do trimestre mais recente para o mais antigo e, em cada trimestre, busca as contratações e
+logo depois os contratos, começando pela Prefeitura. Se o tempo acabar, o que fica faltando é sempre o período mais
+antigo. Enquanto faltarem contratos de algum órgão, a página de Compras avisa e suspende os pontos de atenção que
+dependem de fornecedores (várias dispensas com a mesma empresa e concentração), para não mostrar um retrato
+incompleto.
 
 ## Rodar no seu computador (opcional)
 

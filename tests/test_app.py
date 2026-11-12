@@ -87,6 +87,53 @@ def test_compras(pasta, monkeypatch):
     modalidade = next(m for m in at.multiselect if m.label == "Modalidade")
     modalidade.set_value(["Dispensa"]).run()
     assert not at.exception
+    assert not any("coleta dos contratos" in w.value for w in at.warning)  # coleta completa: sem aviso
+
+
+def _tabela_com(at, coluna: str):
+    for df in at.dataframe:
+        valor = df.value
+        dados = getattr(valor, "data", valor)  # Styler -> DataFrame
+        if coluna in dados.columns:
+            return dados
+    raise AssertionError(f"nenhuma tabela com a coluna {coluna}")
+
+
+def test_compras_mostra_quem_foi_contratado(pasta, monkeypatch):
+    at = abrir(pasta, monkeypatch, "paginas/compras.py")
+    contratado = _tabela_com(at, "Contratado")["Contratado"]
+    assert (contratado != "–").any() and (contratado == "–").any()  # parte ainda sem contrato publicado
+    assert "COMERCIAL EXEMPLO LTDA" in set(contratado) or contratado.str.contains("LTDA|S.A.|EIRELI").any()
+    assert not contratado.str.contains("52998224725|529.982.247-25").any()  # nunca o CPF (LGPD)
+    # contratos: pessoa física com nome e sem documento; no ranking de fornecedores, somada num grupo só
+    contratos = _tabela_com(at, "Fim da vigência")
+    pessoa = contratos[contratos["Fornecedor"] == "FULANO DE TAL"]
+    assert len(pessoa) and (pessoa["CNPJ"] == "–").all()
+    assert "FULANO DE TAL" not in textos(at)  # nem nos pontos de atenção
+    assert any("já com contrato publicado no PNCP" in c.value for c in at.caption)
+
+
+def test_contratos_em_coleta_suspendem_pontos_de_fornecedores(pasta, tmp_path, monkeypatch):
+    import json
+    import shutil
+
+    copia = tmp_path / "dados"
+    shutil.copytree(pasta, copia)
+    meta = json.loads((copia / "metadados.json").read_text(encoding="utf-8"))
+    meta["pncp"]["status"] = "parcial"
+    meta["pncp"]["contratos_pendentes"] = ["76178037000176 2026T3"]
+    (copia / "metadados.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+
+    at = abrir(copia, monkeypatch, "paginas/compras.py")
+    assert any("A coleta dos contratos de 2026 ainda não terminou" in w.value and "Prefeitura" in w.value
+               for w in at.warning)
+    assert "Contratos de 2026 ainda em coleta" in textos(at)
+    assert "Cinco fornecedores concentram" not in textos(at)
+
+    inicio = abrir(copia, monkeypatch)
+    assert any("ainda estão em coleta" in c.value for c in inicio.caption)
+    sobre = abrir(copia, monkeypatch, "paginas/sobre.py")
+    assert "faltam os contratos de 1 órgão, entre eles a Prefeitura" in textos(sobre)
 
 
 def test_comparar_cidades(pasta, monkeypatch):
@@ -100,6 +147,12 @@ def test_comparar_cidades(pasta, monkeypatch):
     assert any("Abatiá" in s.value for s in at.subheader)
     next(s for s in at.selectbox if s.label == "Colorir o mapa por").set_value("pessoal_pct").run()
     assert not at.exception
+    assert "Onde cada cidade fica no ranking do Paraná" in [s.value for s in at.subheader]
+    assert "º** de " in textos(at)  # posição de cada cidade em cada indicador
+    ranking = _tabela_com(at, "Posição")
+    assert ranking["Posição"].is_monotonic_increasing and ranking["Posição"].iloc[0] == 1
+    assert set(ranking["Destaque"]) >= {"Sua cidade", "Comparada"}
+    assert any(" · " in str(v) and "º" in str(v) for v in _tabela_com(at, "Mediana PR").iloc[:, 1])
 
 
 def test_sobre_os_dados(pasta, monkeypatch):

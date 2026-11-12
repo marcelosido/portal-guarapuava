@@ -56,6 +56,7 @@ STATUS = {
     "critico": ("red", ":material/dangerous:"),
     "info": ("blue", ":material/schedule:"),
     "sem_dado": ("gray", ":material/help:"),
+    "incompleto": ("gray", ":material/hourglass_top:"),
 }
 
 
@@ -205,6 +206,35 @@ def aviso_demonstracao(meta: dict) -> None:
         )
 
 
+def nome_curto(orgao: str, limite: int = 48) -> str:
+    """Nome do órgão para usar numa frase: a sigla/nome depois do " - ", quando houver, ou o começo do nome."""
+    orgao = str(orgao).strip()
+    if " - " in orgao:
+        fim = orgao.rsplit(" - ", 1)[1].strip()
+        if 2 < len(fim) < len(orgao):
+            orgao = fim
+    return orgao if len(orgao) <= limite else orgao[: limite - 1].rstrip() + "…"
+
+
+def orgaos_sem_contratos(controle_pncp: dict, ano: int, contratacoes: pd.DataFrame, contratos: pd.DataFrame,
+                         so_estes: list[str] | None = None) -> list[str]:
+    """Órgãos com contratos do ano ainda não coletados, pelo nome (a Prefeitura primeiro).
+
+    `so_estes`: nomes completos dos órgãos escolhidos no filtro da página (None = todos).
+    """
+    from .pncp import contratos_em_falta
+
+    nomes = {**dict(zip(contratacoes["orgao_cnpj"], contratacoes["orgao_nome"])),
+             **dict(zip(contratos["orgao_cnpj"], contratos["orgao_nome"]))}
+    saida = []
+    for cnpj in contratos_em_falta(controle_pncp, ano):
+        nome = nomes.get(cnpj, "")
+        if so_estes is not None and nome not in so_estes:
+            continue
+        saida.append("Prefeitura" if cnpj == config.CNPJ_MUNICIPIO else (nome_curto(nome) if nome else f"CNPJ {cnpj}"))
+    return sorted(saida, key=lambda n: (n != "Prefeitura", n))
+
+
 def topo_portal(nome: str, subtitulo: str) -> None:
     """Faixa do topo, igual em todas as páginas: ilustração do planalto com o nome do portal por cima.
 
@@ -238,7 +268,8 @@ def selo(nivel: str, rotulo: str) -> None:
     st.badge(rotulo, icon=icone, color=cor)
 
 
-ROTULO_NIVEL = {"critico": "Crítico", "grave": "Grave", "alerta": "Atenção", "info": "Para acompanhar", "ok": "Em dia"}
+ROTULO_NIVEL = {"critico": "Crítico", "grave": "Grave", "alerta": "Atenção", "info": "Para acompanhar", "ok": "Em dia",
+                "incompleto": "Coleta incompleta"}
 
 
 def selo_md(nivel: str) -> str:

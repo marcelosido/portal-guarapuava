@@ -74,6 +74,14 @@ def posicao(serie: pd.Series, cod: str) -> str:
     return f"{int(validos.rank(ascending=False, method='min')[cod])}º de {len(validos)}"
 
 
+def com_posicao(serie: pd.Series, cod: str, unidade: str) -> str:
+    """Valor e posição no estado, para a tabela resumo: "R$ 1.248 · 368º"."""
+    validos = serie.dropna()
+    if cod not in validos.index:
+        return "sem dado"
+    return f"{fmt(validos[cod], unidade)} · {int(validos.rank(ascending=False, method='min')[cod])}º"
+
+
 # ---- clique no mapa: troca a cidade comparada (antes de desenhar os seletores)
 clique = st.session_state.get("mapa_pr")
 try:
@@ -179,64 +187,177 @@ with dir_:
     for item in INDICADORES:
         s = pd.to_numeric(tab[item["chave"]], errors="coerce")
         linhas.append({"Indicador": item["curto"],
-                       nome_a: fmt(s.get(minha), item["unidade"]),
-                       nome_b: fmt(s.get(outra), item["unidade"]),
-                       "Mediana do PR": fmt(s.median() if s.notna().any() else None, item["unidade"])})
+                       nome_a: com_posicao(s, minha, item["unidade"]),
+                       nome_b: com_posicao(s, outra, item["unidade"]),
+                       "Mediana PR": fmt(s.median() if s.notna().any() else None, item["unidade"])})
     resumo = pd.DataFrame(linhas)
     if nome_a == nome_b:
         resumo = resumo.loc[:, ~resumo.columns.duplicated()]
-    st.dataframe(resumo, hide_index=True, height=35 * (len(resumo) + 1) + 3)
-    st.caption("Mediana: metade dos municípios do Paraná fica abaixo desse valor e metade acima.")
+    largura_cidade = st.column_config.Column(width=118)
+    st.dataframe(resumo, hide_index=True, height=35 * (len(resumo) + 1) + 3,
+                 column_config={"Indicador": st.column_config.Column(width=150, pinned=True),
+                                nome_a: largura_cidade, nome_b: largura_cidade,
+                                "Mediana PR": st.column_config.Column(width=84)})
+    st.caption("Ao lado de cada valor, a posição no Paraná (1º é o maior). Mediana: metade dos municípios fica "
+               "abaixo desse valor e metade acima.")
 
-# ------------------------------------------------------- régua: onde cada cidade fica
-st.subheader("Onde cada cidade fica entre os municípios do Paraná")
-st.caption("Cada ponto cinza é um município. A linha tracejada marca a mediana do estado: metade dos municípios "
-           "fica abaixo dela e metade acima. Posição: 1º é o maior valor do estado.")
+# ------------------------------------------------------- ranking: onde cada cidade fica
+st.subheader("Onde cada cidade fica no ranking do Paraná")
+st.caption("Cada faixa vai do 1º lugar (maior valor do estado, à esquerda) ao último (menor valor, à direita), "
+           "dividida em cinco partes com o mesmo número de municípios, nas mesmas cores do mapa. A bolinha azul é a "
+           "sua cidade (nome em cima) e a laranja, a comparada (nome embaixo); passe o mouse para ver os valores.")
 
 
-def regua(item: dict) -> alt.Chart | None:
-    """Faixa com todos os municípios (pontos cinza), a mediana e as duas cidades escolhidas."""
+def faixa_do_ranking(posicao_: int, total: int) -> str:
+    """Frase curta sobre a posição: 1º, entre os 10%/25% maiores ou menores, acima ou abaixo da mediana."""
+    if posicao_ == 1:
+        return "maior valor do PR"
+    if posicao_ == total:
+        return "menor valor do PR"
+    topo, base = posicao_ / total, (total - posicao_ + 1) / total
+    for corte in (0.10, 0.25):
+        if topo <= corte:
+            return f"entre os {corte:.0%} maiores"
+        if base <= corte:
+            return f"entre os {corte:.0%} menores"
+    return "acima da mediana" if posicao_ <= total / 2 else "abaixo da mediana"
+
+
+def linha_cidade(cor: str, nome: str, serie: pd.Series, cod: str, unidade: str) -> str:
+    validos = serie.dropna()
+    if cod not in validos.index:
+        return f":{cor}-badge[{nome}] sem dado"
+    pos = int(validos.rank(ascending=False, method="min")[cod])
+    return (f":{cor}-badge[{nome}] **{pos}º** de {len(validos)} · {fmt(validos[cod], unidade)} · "
+            f"{faixa_do_ranking(pos, len(validos))}")
+
+
+NOMES_FAIXA = ["20% maiores", "2ª faixa", "faixa do meio", "4ª faixa", "20% menores"]
+
+
+def ranking(item: dict) -> tuple[alt.LayerChart | None, str]:
+    """Faixa do 1º ao último lugar, em cinco partes, com as duas cidades marcadas na posição de cada uma.
+
+    Devolve o gráfico e uma frase sobre o limite ou mínimo legal (quantos municípios ficam do lado de fora).
+    """
     s = pd.to_numeric(tab[item["chave"]], errors="coerce").dropna()
     if s.empty:
-        return None
-    df = pd.DataFrame({"cod": s.index, "valor": s.values, "nome": [nomes.get(c, c) for c in s.index]})
-    df["y"] = [0.15 + 0.7 * (int(c) * 7919 % 1000) / 1000 for c in df["cod"]]  # espalha os pontos na vertical
-    df["texto"] = [fmt(v, item["unidade"]) for v in df["valor"]]
-    reais = item["unidade"] == "R$/hab"
-    eixo = alt.Axis(title=None, grid=False, tickCount=5, labelExpr=(
-        "'R$ ' + replace(format(datum.value, ',.0f'), /,/g, '.')" if reais else "format(datum.value, '.0f') + '%'"))
-    x = alt.X("valor:Q", axis=eixo, scale=alt.Scale(zero=False, nice=True))
-    y = alt.Y("y:Q", axis=None, scale=alt.Scale(domain=[0, 1]))
-    dica = [alt.Tooltip("nome:N", title="Município"), alt.Tooltip("texto:N", title=item["unidade"])]
-    camadas = [alt.Chart(df).mark_circle(size=20, color=T["apagado"], opacity=0.4).encode(x=x, y=y, tooltip=dica)]
-    camadas.append(alt.Chart(pd.DataFrame({"valor": [s.median()]}))
-                   .mark_rule(strokeDash=[4, 3], color=T["tinta2"], strokeWidth=1).encode(x=x))
+        return None, ""
+    n, unidade = len(s), item["unidade"]
+    ordem = s.sort_values(ascending=False, kind="stable")
+    rank = s.rank(ascending=False, method="min").astype(int)
+    rampa = T["sequencial"]  # do menor para o maior valor (mesmas cores do mapa)
+    partes = 5 if n >= 5 else 1
+    cortes = [round(k * n / partes) for k in range(partes + 1)]
+    segmentos = []
+    for k in range(partes):
+        fatia = ordem.iloc[cortes[k]: cortes[k + 1]]
+        if fatia.empty:
+            continue
+        segmentos.append({"x0": cortes[k] + 0.5 + (0.004 * n if k else 0), "x1": cortes[k + 1] + 0.5,
+                          "faixa": NOMES_FAIXA[k] if partes == 5 else "todos",
+                          "de_ate": f"{fmt(fatia.max(), unidade)} a {fmt(fatia.min(), unidade)}",
+                          "cor": rampa[partes - 1 - k] if partes == 5 else T["serie"][0],
+                          "posicoes": f"{cortes[k] + 1}º a {cortes[k + 1]}º"})
+    seg = pd.DataFrame(segmentos)
+    escala_x = alt.Scale(domain=[0.5, n + 0.5], nice=False, zero=False)
+    escala_y = alt.Scale(domain=[-2.5, 2.0], nice=False)
+    camadas = [alt.Chart(seg).mark_rect(cornerRadius=4).encode(
+        x=alt.X("x0:Q", scale=escala_x, axis=None), x2="x1:Q",
+        y=alt.datum(-0.45, scale=escala_y, axis=None), y2=alt.datum(0.45),
+        color=alt.Color("cor:N", scale=None),
+        tooltip=[alt.Tooltip("faixa:N", title="Faixa"), alt.Tooltip("posicoes:N", title="Posições"),
+                 alt.Tooltip("de_ate:N", title="Valores")])]
+    mediana = float(s.median())
+    rodape = pd.DataFrame([
+        {"x": 0.5, "texto": "1º", "alinha": "left"},
+        {"x": (n + 1) / 2, "texto": f"mediana {fmt(mediana, unidade)}", "alinha": "center"},
+        {"x": n + 0.5, "texto": f"{n}º", "alinha": "right"},
+    ])
+    for alinha in ("left", "center", "right"):
+        camadas.append(alt.Chart(rodape[rodape["alinha"] == alinha]).mark_text(
+            align=alinha, baseline="top", fontSize=11, color=T["tinta2"]).encode(
+            x="x:Q", y=alt.datum(-1.85), text="texto:N"))
+    frase = ""
     if item.get("referencia"):
-        ref = pd.DataFrame({"valor": [item["referencia"][0]], "rotulo": [item["referencia"][1]], "y": [1.0]})
-        camadas.append(alt.Chart(ref).mark_rule(color=T["apagado"], strokeWidth=1).encode(x=x))
-        camadas.append(alt.Chart(ref).mark_text(align="left", baseline="top", dx=3, fontSize=10, color=T["tinta2"])
-                       .encode(x=x, y=y, text="rotulo:N"))
-    escolhidos = df[df["cod"].isin([minha, outra])].assign(
-        quem=lambda d: d["cod"].map({minha: "Sua cidade", outra: "Comparada"}), y=0.5)
-    if len(escolhidos):
-        cor = alt.Color("quem:N", scale=alt.Scale(domain=["Sua cidade", "Comparada"], range=[COR_A, COR_B]), legend=None)
-        camadas.append(alt.Chart(escolhidos).mark_circle(size=170, opacity=1, stroke=T["superficie"], strokeWidth=2)
-                       .encode(x=x, y=y, color=cor, tooltip=dica))
-    return alt.layer(*camadas).properties(height=80)
+        valor_ref, rotulo_ref = item["referencia"]
+        limite = rotulo_ref.startswith("limite")
+        fora = int((s > valor_ref).sum()) if limite else int((s < valor_ref).sum())
+        corte_ref = (fora if limite else n - fora) + 0.5
+        if 0 < fora < n:
+            camadas.append(alt.Chart(pd.DataFrame({"x": [corte_ref]})).mark_rule(
+                color=T["tinta"], strokeWidth=1.5, strokeDash=[3, 2]).encode(x="x:Q", y=alt.datum(-0.75),
+                                                                           y2=alt.datum(0.75)))
+        regra = f"{'limite' if limite else 'mínimo'} de {numero(valor_ref, 0)}%"
+        frase = (f"{fora} {'município passou' if fora == 1 else 'municípios passaram'} do {regra} "
+                 "(à esquerda da linha tracejada)." if limite else
+                 f"{fora} {'município ficou' if fora == 1 else 'municípios ficaram'} abaixo do {regra} "
+                 "(à direita da linha tracejada).") if fora else f"Nenhum município fora do {regra}."
+    marcas = []
+    # a cidade comparada é desenhada primeiro, para a sua cidade ficar por cima quando as duas estão juntas
+    for cod, quem, y_rotulo, base in ((outra, "Comparada", -0.95, "top"), (minha, "Sua cidade", 0.95, "bottom")):
+        if cod in s.index and not (quem == "Comparada" and outra == minha):
+            pos_graf = int(ordem.index.get_loc(cod)) + 1
+            fracao = pos_graf / n
+            marcas.append({"pos": pos_graf, "quem": quem, "nome": nomes.get(cod, cod), "texto": fmt(s[cod], unidade),
+                           "lugar": f"{rank[cod]}º de {n}", "marca": f"{nomes.get(cod, cod)} · {rank[cod]}º",
+                           "y_rotulo": y_rotulo, "base": base,
+                           "alinha": "right" if fracao > 0.75 else ("left" if fracao < 0.25 else "center")})
+    if marcas:
+        m = pd.DataFrame(marcas)
+        cor = alt.Color("quem:N", scale=alt.Scale(domain=["Sua cidade", "Comparada"], range=[COR_A, COR_B]),
+                        legend=None)
+        dica = [alt.Tooltip("nome:N", title="Município"), alt.Tooltip("texto:N", title="Valor"),
+                alt.Tooltip("lugar:N", title="Posição")]
+        camadas.append(alt.Chart(m).mark_circle(size=190, opacity=1, stroke=T["superficie"], strokeWidth=2.5)
+                       .encode(x="pos:Q", y=alt.datum(0), color=cor, tooltip=dica))
+        # rótulo em tinta de texto (a cor fica na bolinha); sua cidade em cima, a comparada embaixo
+        for (base, alinha), parte in m.groupby(["base", "alinha"]):
+            camadas.append(alt.Chart(parte).mark_text(baseline=base, align=alinha, fontSize=12, fontWeight="bold",
+                                                      color=T["tinta"])
+                           .encode(x="pos:Q", y="y_rotulo:Q", text="marca:N"))
+    return alt.layer(*camadas).properties(height=104), frase
 
 
 itens = [i for i in INDICADORES if tab[i["chave"]].notna().any()]
+total_com_dado = len(com_dado)
 for par in range(0, len(itens), 2):
     colunas = st.columns(2, gap="large")
     for coluna, item in zip(colunas, itens[par: par + 2]):
         with coluna.container(border=True):
             s = pd.to_numeric(tab[item["chave"]], errors="coerce")
             st.markdown(f"**{item['nome']}**")
-            st.markdown(md(f":blue-badge[{nome_a}] {fmt(s.get(minha), item['unidade'])} · {posicao(s, minha)}  \n"
-                           f":orange-badge[{nome_b}] {fmt(s.get(outra), item['unidade'])} · {posicao(s, outra)}"))
-            grafico = regua(item)
+            st.markdown(md(linha_cidade("blue", nome_a, s, minha, item["unidade"]) + "  \n"
+                           + linha_cidade("orange", nome_b, s, outra, item["unidade"])))
+            grafico, frase = ranking(item)
             if grafico is not None:
                 st.altair_chart(grafico, width="stretch")
+            if frase:
+                st.caption(frase)
+            if s.notna().sum() < 0.9 * total_com_dado:
+                st.caption(f"Só {s.notna().sum()} dos {total_com_dado} municípios informaram este dado no "
+                           f"relatório de {ano}.")
+
+with st.expander("Ranking completo", icon=":material/format_list_numbered:"):
+    escolhido = st.selectbox("Indicador", [i["chave"] for i in itens], key="cmp_ranking",
+                             format_func=lambda k: INDICADORES_POR_CHAVE[k]["nome"],
+                             index=[i["chave"] for i in itens].index(indicador) if indicador in
+                             [i["chave"] for i in itens] else 0)
+    item_r = INDICADORES_POR_CHAVE[escolhido]
+    s_r = pd.to_numeric(tab[escolhido], errors="coerce").dropna()
+    reais_r = item_r["unidade"] == "R$/hab"
+    coluna_valor = "Valor (R$ por habitante)" if reais_r else "Valor (%)"
+    tabela_r = pd.DataFrame({"Posição": s_r.rank(ascending=False, method="min").astype(int),
+                             "Município": [nomes.get(c, c) for c in s_r.index],
+                             coluna_valor: s_r.round(0 if reais_r else 1).values,
+                             "Destaque": ["Sua cidade" if c == minha else ("Comparada" if c == outra else "")
+                                          for c in s_r.index]},
+                            index=s_r.index).sort_values(["Posição", "Município"])
+    st.dataframe(tabela_r, hide_index=True, height=420,
+                 column_config={"Posição": st.column_config.NumberColumn(format="%dº", width=90),
+                                coluna_valor: st.column_config.NumberColumn(format="localized")})
+    st.caption("1º é o maior valor do estado. Empates ficam na mesma posição. Use a lupa da tabela para "
+               "procurar uma cidade.")
 
 with st.expander("Como comparar com cuidado"):
     st.markdown(

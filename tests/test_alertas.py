@@ -73,3 +73,12 @@ def test_regras_de_compras():
     assert round(a.direta_valor / a.total_valor, 4) == round(130 / 2130, 4)
     chaves = [p.chave for p in alertas.pontos_compras(a)]
     assert chaves[:3] == ["emergencia", "recorrentes", "prazo"] and "direta" in chaves and "desconto" in chaves
+    assert "concentracao" in chaves and "contratos_incompletos" not in chaves
+
+    # contratos de algum órgão ainda em coleta: as regras sobre fornecedores ficam suspensas e o motivo aparece
+    incompleta = alertas.analisar_compras(tipar_contratacoes(c), tipar_contratos(k), 2026, orgaos_pendentes=["Prefeitura"])
+    pontos = alertas.pontos_compras(incompleta)
+    chaves = [p.chave for p in pontos]
+    assert "recorrentes" not in chaves and "concentracao" not in chaves
+    assert chaves[-1] == "contratos_incompletos" and pontos[-1].nivel == "incompleto"
+    assert "Prefeitura" in pontos[-1].detalhe and "emergencia" in chaves  # as demais regras continuam

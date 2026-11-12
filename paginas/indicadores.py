@@ -18,7 +18,8 @@ from despesas.formatacao import brl, brl_compacto, numero, pct
 from despesas.indicadores import status_divida, status_limite, status_meta, status_minimo
 from despesas.painel import (AZUL, CINZA, assinatura, aviso_demonstracao, cabecalho, carregar_compras,
                              carregar_despesa, carregar_indicadores, coletado_em, estilo_grafico, ler_metadados,
-                             lista_pontos, md, medidor, mostrar, pasta_dados, selo, sem_dados, seletor_ano, tabela)
+                             lista_pontos, md, medidor, mostrar, orgaos_sem_contratos, pasta_dados, selo, sem_dados,
+                             seletor_ano, tabela)
 
 PASTA = pasta_dados()
 meta = ler_metadados(PASTA)
@@ -88,7 +89,9 @@ pontos = pontos_fiscais(r.to_dict(), None if e is None else e.to_dict(), None if
                         fechado_rreo, ate_rreo, f"RGF {ate_rgf}", mes_rreo, ano,
                         investimentos=(dotacao_investimento, investimento) if dotacao_investimento else None)
 contratacoes, contratos = carregar_compras(str(PASTA), assinatura(PASTA / "fContratacoes.csv"))
-analise_compras = analisar_compras(contratacoes, contratos, ano) if len(contratacoes) else None
+faltam_contratos = orgaos_sem_contratos(meta.get("pncp", {}), ano, contratacoes, contratos)
+analise_compras = (analisar_compras(contratacoes, contratos, ano, orgaos_pendentes=faltam_contratos)
+                   if len(contratacoes) else None)
 pontos_pncp = pontos_compras(analise_compras) if analise_compras is not None else None
 
 with st.container(border=True):
@@ -107,8 +110,13 @@ with st.container(border=True):
             st.caption(f"Nenhuma compra publicada no PNCP em {ano}. O portal acompanha as compras a partir de "
                        f"{config.PNCP_INICIO[:4]}.")
         else:
-            lista_pontos([p_ for p_ in pontos_pncp if p_.nivel != "info"][:3] or pontos_pncp[:2],
+            lista_pontos([p_ for p_ in pontos_pncp if p_.nivel not in ("info", "incompleto")][:3]
+                         or [p_ for p_ in pontos_pncp if p_.nivel == "info"][:2],
                          "Nenhum ponto de atenção nas compras publicadas.")
+            if faltam_contratos:
+                st.caption(f":material/hourglass_top: Os contratos de {ano} ainda estão em coleta "
+                           f"({', '.join(faltam_contratos[:2])}{' e outros' if len(faltam_contratos) > 2 else ''}); "
+                           "os pontos sobre fornecedores voltam quando ela terminar.")
             st.page_link("paginas/compras.py", label="Ver compras e contratos", icon=":material/arrow_forward:")
     st.page_link("paginas/sobre.py", label="Como cada ponto é calculado", icon=":material/info:")
 

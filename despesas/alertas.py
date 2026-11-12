@@ -17,7 +17,7 @@ from .indicadores import normalizar, status_divida, status_limite, status_meta, 
 from .pncp import CONTRATACAO_DIRETA, LICITACOES
 
 # nível -> ordem de exibição (mais grave primeiro)
-ORDEM = {"critico": 0, "grave": 1, "alerta": 2, "info": 3}
+ORDEM = {"critico": 0, "grave": 1, "alerta": 2, "info": 3, "incompleto": 4}
 
 # ------------------------------------------------------------------ regras (compras)
 PRAZO_MINIMO_DIAS_UTEIS = 8        # Lei 14.133/2021, art. 55, I, a: menor prazo para propostas (bens, menor preço)
@@ -177,17 +177,23 @@ class AnaliseCompras:
     direta_qtd: int = 0
     top5_participacao: float | None = None
     contratos_ligados: bool = False
+    orgaos_pendentes: list[str] = field(default_factory=list)  # órgãos com contratos do ano ainda não coletados
 
 
-def analisar_compras(contratacoes: pd.DataFrame, contratos: pd.DataFrame, ano: int) -> AnaliseCompras:
-    """Aplica as regras de atenção às compras publicadas no ano (data de publicação no PNCP)."""
+def analisar_compras(contratacoes: pd.DataFrame, contratos: pd.DataFrame, ano: int,
+                     orgaos_pendentes: list[str] = ()) -> AnaliseCompras:
+    """Aplica as regras de atenção às compras publicadas no ano (data de publicação no PNCP).
+
+    `orgaos_pendentes`: nomes dos órgãos cujos contratos do ano ainda não foram coletados. Enquanto houver algum,
+    as regras que dependem de contratos (fornecedores) ficam suspensas, para não mostrar um retrato incompleto.
+    """
     c = contratacoes.copy()
     c["publicacao"] = datas(c["data_publicacao"])
     c = c[c["publicacao"].dt.year == ano]
     k = contratos.copy()
     k["assinatura"] = datas(k["data_assinatura"]).fillna(datas(k["data_publicacao"]))
     k = k[(k["assinatura"].dt.year == ano) & ~k["receita"]]
-    a = AnaliseCompras(ano=ano, contratacoes=c, contratos=k)
+    a = AnaliseCompras(ano=ano, contratacoes=c, contratos=k, orgaos_pendentes=list(orgaos_pendentes))
     if c.empty and k.empty:
         return a
 
@@ -236,7 +242,7 @@ def pontos_compras(a: AnaliseCompras) -> list[Ponto]:
                             f"Somam {brl_compacto(a.emergenciais['valor_estimado'].fillna(0).sum())} estimados. A dispensa por "
                             "emergência (art. 75, VIII, da Lei 14.133) exige justificativa e vale por até um ano.",
                             pagina, len(a.emergenciais), "Amparo legal: art. 75, VIII.", "emergencia"))
-    if len(a.recorrentes):
+    if len(a.recorrentes) and not a.orgaos_pendentes:
         pontos.append(Ponto("alerta", "Compras",
                             f"{len(a.recorrentes)} fornecedores com {MIN_DISPENSAS_MESMO_FORNECEDOR} ou mais dispensas por valor",
                             "Várias contratações diretas com a mesma empresa no ano podem ser legítimas, mas merecem "
@@ -259,9 +265,16 @@ def pontos_compras(a: AnaliseCompras) -> list[Ponto]:
         pontos.append(Ponto("info", "Compras", f"{len(a.sem_desconto)} licitações homologadas sem desconto",
                             "O valor final ficou a menos de 1% do estimado, o que pode indicar pouca disputa.",
                             pagina, len(a.sem_desconto), "Homologado ≥ 99% do estimado.", "desconto"))
-    if a.top5_participacao is not None and a.top5_participacao >= 0.5:
+    if a.top5_participacao is not None and a.top5_participacao >= 0.5 and not a.orgaos_pendentes:
         pontos.append(Ponto("info", "Compras", f"Cinco fornecedores concentram {pct(a.top5_participacao)} dos contratos",
                             f"Participação dos 5 maiores no valor dos contratos assinados em {a.ano}.", pagina,
                             regra="Valor global dos contratos por CNPJ.", chave="concentracao"))
+    if a.orgaos_pendentes:
+        n = len(a.orgaos_pendentes)
+        quais = ", ".join(a.orgaos_pendentes[:3]) + (f" e mais {n - 3}" if n > 3 else "")
+        pontos.append(Ponto("incompleto", "Compras", f"Contratos de {a.ano} ainda em coleta",
+                            f"Faltam os contratos de {n} {'órgão' if n == 1 else 'órgãos'} ({quais}). Os pontos sobre "
+                            "fornecedores (várias dispensas com a mesma empresa e concentração) voltam quando a coleta "
+                            "terminar, na próxima execução do robô.", pagina, chave="contratos_incompletos"))
     return ordenar(pontos)
 

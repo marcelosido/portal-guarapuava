@@ -11,6 +11,7 @@ from despesas.alertas import (DESCONTO_MINIMO, EXECUCAO_BAIXA, MIN_DISPENSAS_MES
 from despesas.formatacao import brl, numero, pct
 from despesas.painel import (assinatura, cabecalho, carregar_despesa, coletado_em, ler_metadados, mes_extenso,
                              pacote_dados_abertos, pasta_dados, selo_md, tabela)
+from despesas.pncp import contratos_em_falta
 from despesas.transformacao import NOMES_MEDIDAS
 
 PASTA = pasta_dados()
@@ -67,8 +68,13 @@ situacao = {"ok": "ok", "parcial": "info", "falhou": "critico"}
 linhas = [f"{selo_md('ok' if not meta.get('falhas') else 'alerta')} **Dados do município** – "
           f"{meta.get('meses', '–')} meses de MSC, {meta.get('requisicoes', '–')} consultas na última coleta"]
 if pncp:
+    sem_contratos = contratos_em_falta(pncp)
     linhas.append(f"{selo_md(situacao.get(pncp.get('status'), 'info'))} **Compras (PNCP)** – "
                   f"{numero(pncp.get('contratacoes', 0), 0)} contratações e {numero(pncp.get('contratos', 0), 0)} contratos"
+                  + (f" · faltam os contratos de {len(sem_contratos)} "
+                     f"{'órgão' if len(sem_contratos) == 1 else 'órgãos'}"
+                     + (", entre eles a Prefeitura" if config.CNPJ_MUNICIPIO in sem_contratos else "")
+                     if sem_contratos else "")
                   + (" · parte das consultas fica para a próxima coleta" if pncp.get("status") == "parcial" else ""))
 if comp:
     linhas.append(f"{selo_md(situacao.get(comp.get('status'), 'info'))} **Comparação entre cidades** – "
@@ -153,10 +159,12 @@ st.dataframe(regras, hide_index=True, column_config={"Regra": st.column_config.C
 # --------------------------------------------------------------------------------- LGPD
 st.subheader("Dados pessoais")
 st.markdown(
-    "O portal mostra valores agregados e dados de empresas, que são públicos. Seguindo a Lei Geral de Proteção de "
-    "Dados (Lei 13.709/2018), **fornecedores pessoa física e microempreendedores individuais aparecem sem nome e "
-    "sem documento**, e números com formato de CPF em textos livres são substituídos por asteriscos – também nos "
-    "arquivos para download. A publicação completa continua disponível no PNCP, que é a fonte oficial."
+    "O portal mostra valores agregados e dados de empresas, que são públicos. Para fornecedores **pessoa física e "
+    "microempreendedores individuais (MEI)**, segue a Lei Geral de Proteção de Dados (Lei 13.709/2018) como os "
+    "portais oficiais de transparência: **o nome aparece nas tabelas, mas nenhum número de documento** (nem CPF, "
+    "nem o CNPJ do MEI), e nos rankings e pontos de atenção eles aparecem somados num grupo só, sem destaque "
+    "individual. Números com formato de CPF em textos livres são substituídos por asteriscos – também nos arquivos "
+    "para download. A publicação completa continua disponível no PNCP, que é a fonte oficial."
 )
 
 # ---------------------------------------------------------------------------- downloads

@@ -5,8 +5,9 @@ contratações (/v1/contratacoes/publicacao) e contratos (/v1/contratos). As con
 filtradas pelo código IBGE do município e pela esfera municipal ("M"): órgãos estaduais e federais
 com sede na cidade (universidades, por exemplo) ficam de fora.
 
-LGPD: fornecedores pessoa física e microempreendedores individuais (razão social terminada no CPF)
-são gravados sem nome e sem documento; números de CPF em textos livres são mascarados.
+LGPD: fornecedores pessoa física e microempreendedores individuais (MEI) são gravados com o nome, mas sem
+nenhum número de documento (nem CPF, nem CNPJ do MEI); números de CPF em textos livres são mascarados.
+No portal, os nomes aparecem só nas tabelas; rankings e pontos de atenção os mostram agrupados.
 """
 
 from __future__ import annotations
@@ -49,7 +50,11 @@ COLS_CONTRATOS = [
 ]
 
 _CPF = re.compile(r"(?<![\d./-])\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?![\d./-])")
-_MEI = re.compile(r"\d{3}\.?\d{3}\.?\d{3}-?\d{2}\s*$")
+_MEI = re.compile(r"\d{3}\.?\d{3}\.?\d{3}-?\d{2}\s*$")          # MEI antigo: "NOME 12345678901"
+_MEI_CNPJ = re.compile(r"^\s*\d{2}\.?\d{3}\.?\d{3}\s+(?=\D)")      # MEI novo: "12.345.678 NOME"
+# Regra de publicação dos fornecedores. Mudou em 1.2.3 (antes: pessoa física e MEI sem nome); quando muda, o
+# coletor busca de novo, uma vez, os contratos já gravados.
+POLITICA_FORNECEDOR = "nome-sem-documento"
 
 
 # ----------------------------------------------------------------- dados pessoais
@@ -58,19 +63,26 @@ def mascarar_cpf(texto: object) -> str:
     return _CPF.sub("***.***.***-**", "" if texto is None else str(texto))
 
 
+def _sem_documento(nome: str) -> str:
+    """Nome sem números de documento: tira o CPF (no fim ou no meio) e o CNPJ básico no começo (MEI)."""
+    nome = _MEI_CNPJ.sub("", nome)
+    nome = re.sub(r"\b(?:CPF|CNPJ)\s*[:nº°.]*\s*", " ", _CPF.sub(" ", nome), flags=re.IGNORECASE)
+    return re.sub(r"\s{2,}", " ", nome).strip(" -–,.;:/")
+
+
 def fornecedor_publico(tipo: object, documento: object, nome: object) -> tuple[str, str, str]:
     """(tipo, documento, nome) que podem ser publicados.
 
-    Pessoa jurídica: CNPJ e razão social, que são públicos. Pessoa física e MEI cuja razão social
-    termina com o CPF: sem documento e sem nome.
+    Pessoa jurídica: CNPJ e razão social, que são públicos. Pessoa física ("PF") e microempreendedor
+    individual ("MEI"): só o nome, sem nenhum número de documento.
     """
     tipo = str(tipo or "").strip().upper()
     documento = re.sub(r"\D", "", str(documento or ""))
     nome = str(nome or "").strip()
     if tipo == "PF" or (tipo != "PE" and len(documento) == 11):
-        return "PF", "", "Pessoa física (dado protegido)"
-    if _MEI.search(nome):
-        return tipo or "PJ", "", "Microempreendedor individual (dado protegido)"
+        return "PF", "", _sem_documento(nome) or "Pessoa física"
+    if _MEI.search(nome) or _MEI_CNPJ.match(nome):
+        return "MEI", "", _sem_documento(nome) or "Microempreendedor individual"
     return tipo or "PJ", documento, nome
 
 
@@ -261,10 +273,13 @@ def tipar_contratos(df: pd.DataFrame) -> pd.DataFrame:
 
 def coletar_pncp(cliente: ClientePNCP, pasta, hoje: dt.date, municipio_ibge: str, cnpj_principal: str,
                  inicio: dt.date, controle: dict, completo: bool = False) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
-    """Coleta incremental: trimestres ainda não coletados + os dois mais recentes (atualizações).
+    """Coleta incremental, do trimestre mais recente para o mais antigo.
 
-    `controle` vem do metadados.json anterior ({"janelas_ok": [...], "contratos_ok": {cnpj: [...]}}).
-    Devolve (contratações, contratos, controle atualizado). Para no meio se o tempo acabar.
+    Em cada trimestre: as contratações (todas as modalidades) e, logo depois, os contratos de cada órgão
+    municipal, começando pelo CNPJ do município. Se o tempo acabar, o que falta é sempre o período mais antigo,
+    e ele fica em `pendentes` para a próxima execução. Os dois trimestres mais recentes são sempre consultados de
+    novo (atualizações). `controle` vem do metadados.json anterior
+    ({"janelas_ok": [...], "contratos_ok": {cnpj: [...]}}). Devolve (contratações, contratos, controle atualizado).
     """
     from pathlib import Path
 
@@ -275,95 +290,133 @@ def coletar_pncp(cliente: ClientePNCP, pasta, hoje: dt.date, municipio_ibge: str
                else _tabela([], COLS_CONTRATOS, tipar_contratos))
     janelas_ok = set() if completo else set(controle.get("janelas_ok", []))
     contratos_ok = {} if completo else {k: set(v) for k, v in controle.get("contratos_ok", {}).items()}
+    # Regra de publicação dos fornecedores mudou: busca de novo, uma vez, os contratos já gravados (por último,
+    # depois do que falta; não conta como "em falta", porque os contratos já estão lá).
+    if controle.get("politica_fornecedor") == POLITICA_FORNECEDOR or completo:
+        renovar = {tuple(str(x).split(" ", 1)) for x in controle.get("renovar_contratos", [])}
+    else:
+        renovar = {(c, r) for c, rotulos in contratos_ok.items() for r in rotulos}
     todas = janelas(inicio, hoje)
     recentes = {j.rotulo for j in todas[-2:]}
+    ordem = todas[::-1]  # mais recente primeiro
+    orgaos = {c for c in antigas["orgao_cnpj"] if c} | set(contratos_ok) | {cnpj_principal}
     falhas: list[str] = []
-    interrompido = False
-
     novas: list[dict] = []
-    seguidas = 0  # falhas consecutivas: com a API fora do ar, desiste logo em vez de gastar o tempo da coleta
+    novos: list[dict] = []
     recusadas: set[int] = set()
-    for janela in todas:
-        if janela.rotulo in janelas_ok and janela.rotulo not in recentes:
-            continue
+    consultados: set[tuple[str, str]] = set()
+    estado = {"seguidas": 0, "parar": False}  # falhas seguidas: com a API fora do ar, desiste logo
+
+    def lista_orgaos() -> list[str]:
+        return [cnpj_principal] + sorted(orgaos - {cnpj_principal})
+
+    def precisa(feitos: set, janela: Janela) -> bool:
+        return janela.rotulo not in feitos or janela.rotulo in recentes
+
+    def falhou(descricao: str, exc: Exception) -> None:
+        falhas.append(descricao)
+        log.error("PNCP %s: %s", descricao, exc)
+        estado["seguidas"] += 1
+        if estado["seguidas"] >= FALHAS_SEGUIDAS_MAX:
+            log.error("PNCP: %d falhas seguidas; o restante fica para a próxima execução.", estado["seguidas"])
+            estado["parar"] = True
+
+    def buscar_contratacoes(janela: Janela) -> None:
         registros: list[dict] = []
-        try:
-            for modalidade in MODALIDADES:
-                if modalidade in recusadas:
-                    continue
-                try:
-                    registros += _consultar_em_partes(cliente.contratacoes, janela, modalidade, municipio_ibge)
-                except ErroAPI as exc:
-                    if exc.status is None or exc.status >= 500 or exc.status in (408, 429):
-                        raise
-                    recusadas.add(modalidade)  # a API não aceita esta modalidade: segue com as outras
-                    log.warning("PNCP recusou a modalidade %s (%s); ela fica de fora nesta coleta.", modalidade, exc.status)
-        except TempoEsgotado:
-            interrompido = True
-            break
-        except ErroAPI as exc:
-            falhas.append(f"contratações {janela.rotulo}")
-            log.error("PNCP contratações %s: %s", janela.rotulo, exc)
-            seguidas += 1
-            if seguidas >= FALHAS_SEGUIDAS_MAX:
-                log.error("PNCP: %d falhas seguidas; a coleta das compras fica para a próxima execução.", seguidas)
-                interrompido = True
-                break
-            continue
-        seguidas = 0
+        for modalidade in MODALIDADES:
+            if modalidade in recusadas:
+                continue
+            try:
+                registros += _consultar_em_partes(cliente.contratacoes, janela, modalidade, municipio_ibge)
+            except ErroAPI as exc:
+                if exc.status is None or exc.status >= 500 or exc.status in (408, 429):
+                    raise
+                recusadas.add(modalidade)  # a API não aceita esta modalidade: segue com as outras
+                log.warning("PNCP recusou a modalidade %s (%s); ela fica de fora nesta coleta.", modalidade, exc.status)
         linhas = [normalizar_contratacao(r) for r in registros]
         linhas = [x for x in linhas if str(x["esfera"]).upper() == "M"
                   and (not x["municipio_ibge"] or x["municipio_ibge"] == str(municipio_ibge))]
-        novas += linhas
+        novas.extend(linhas)
+        orgaos.update(x["orgao_cnpj"] for x in linhas if x["orgao_cnpj"])
         janelas_ok.add(janela.rotulo)
+        estado["seguidas"] = 0
         log.info("PNCP %s: %d contratações municipais", janela.rotulo, len(linhas))
+
+    def buscar_contratos(cnpj: str, janela: Janela) -> None:
+        registros = _consultar_em_partes(cliente.contratos, janela, cnpj)
+        novos.extend(normalizar_contrato(r) for r in registros)
+        contratos_ok.setdefault(cnpj, set()).add(janela.rotulo)
+        consultados.add((cnpj, janela.rotulo))
+        renovar.discard((cnpj, janela.rotulo))
+        estado["seguidas"] = 0
+
+    def contratos_da_janela(janela: Janela) -> None:
+        for cnpj in lista_orgaos():
+            if (cnpj, janela.rotulo) in consultados or not precisa(contratos_ok.get(cnpj, set()), janela):
+                continue
+            try:
+                buscar_contratos(cnpj, janela)
+            except ErroAPI as exc:
+                falhou(f"contratos {cnpj} {janela.rotulo}", exc)
+                if estado["parar"]:
+                    return
+
+    interrompido = False
+    try:
+        for janela in ordem:
+            if precisa(janelas_ok, janela):
+                try:
+                    buscar_contratacoes(janela)
+                except ErroAPI as exc:
+                    falhou(f"contratações {janela.rotulo}", exc)
+            if not estado["parar"]:
+                contratos_da_janela(janela)
+            if estado["parar"]:
+                break
+        else:  # órgãos que só apareceram nos trimestres mais antigos: completa os contratos deles
+            for janela in ordem:
+                contratos_da_janela(janela)
+                if estado["parar"]:
+                    break
+            else:  # por último, a renovação dos contratos gravados com a regra antiga (mais recentes primeiro)
+                por_rotulo = {j.rotulo: j for j in todas}
+                for cnpj, rotulo in sorted(renovar, key=lambda x: (x[1], x[0] == cnpj_principal), reverse=True):
+                    if (cnpj, rotulo) in consultados or rotulo not in por_rotulo:
+                        renovar.discard((cnpj, rotulo))
+                        continue
+                    try:
+                        buscar_contratos(cnpj, por_rotulo[rotulo])
+                    except ErroAPI as exc:
+                        falhou(f"contratos {cnpj} {rotulo}", exc)
+                        if estado["parar"]:
+                            break
+    except TempoEsgotado:
+        interrompido = True
+    interrompido = interrompido or estado["parar"]
 
     contratacoes = pd.concat([antigas, _tabela(novas, COLS_CONTRATACOES, tipar_contratacoes)],
                              ignore_index=True) if novas else antigas
     contratacoes = (contratacoes.drop_duplicates("id_pncp", keep="last")
                     .sort_values(["data_publicacao", "id_pncp"]).reset_index(drop=True))
-
-    # contratos: por órgão municipal encontrado nas contratações (e o CNPJ do município)
-    cnpjs = sorted({c for c in contratacoes["orgao_cnpj"] if c} | {cnpj_principal})
-    novos: list[dict] = []
-    if not interrompido:
-        for cnpj in cnpjs:
-            feitos = contratos_ok.setdefault(cnpj, set())
-            for janela in todas:
-                if janela.rotulo in feitos and janela.rotulo not in recentes:
-                    continue
-                try:
-                    registros = _consultar_em_partes(cliente.contratos, janela, cnpj)
-                except TempoEsgotado:
-                    interrompido = True
-                    break
-                except ErroAPI as exc:
-                    falhas.append(f"contratos {cnpj} {janela.rotulo}")
-                    log.error("PNCP contratos %s %s: %s", cnpj, janela.rotulo, exc)
-                    seguidas += 1
-                    if seguidas >= FALHAS_SEGUIDAS_MAX:
-                        interrompido = True
-                        break
-                    continue
-                seguidas = 0
-                novos += [normalizar_contrato(r) for r in registros]
-                feitos.add(janela.rotulo)
-            if interrompido:
-                break
     contratos = pd.concat([antigos, _tabela(novos, COLS_CONTRATOS, tipar_contratos)],
                           ignore_index=True) if novos else antigos
     contratos = (contratos.drop_duplicates("id_pncp", keep="last")
                  .sort_values(["data_publicacao", "id_pncp"]).reset_index(drop=True))
 
-    pendentes = [j.rotulo for j in todas if j.rotulo not in janelas_ok]
-    pendentes += [f"{c} {j.rotulo}" for c in cnpjs for j in todas if j.rotulo not in contratos_ok.get(c, set())]
-    status = "falhou" if falhas and not novas and not novos else ("parcial" if interrompido or falhas or pendentes else "ok")
+    cnpjs = lista_orgaos()
+    contratos_pendentes = [f"{c} {j.rotulo}" for c in cnpjs for j in todas if j.rotulo not in contratos_ok.get(c, set())]
+    pendentes = [j.rotulo for j in todas if j.rotulo not in janelas_ok] + contratos_pendentes
+    status = ("falhou" if falhas and not novas and not novos
+              else ("parcial" if interrompido or falhas or pendentes or renovar else "ok"))
     controle_novo = {
         "status": status,
         "inicio": inicio.isoformat(),
         "janelas_ok": sorted(janelas_ok),
         "contratos_ok": {k: sorted(v) for k, v in sorted(contratos_ok.items())},
         "pendentes": pendentes[:50],
+        "contratos_pendentes": contratos_pendentes,
+        "politica_fornecedor": POLITICA_FORNECEDOR,
+        "renovar_contratos": sorted(f"{c} {r}" for c, r in renovar),
         "falhas": falhas,
         "modalidades_recusadas": sorted(recusadas),
         "contratacoes": int(len(contratacoes)),
@@ -372,3 +425,40 @@ def coletar_pncp(cliente: ClientePNCP, pasta, hoje: dt.date, municipio_ibge: str
         "coletado_em": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
     }
     return contratacoes[COLS_CONTRATACOES], contratos[COLS_CONTRATOS], controle_novo
+
+
+def contratos_em_falta(controle: dict, ano: int | None = None) -> list[str]:
+    """CNPJs dos órgãos cujos contratos ainda não foram coletados (no ano, se informado).
+
+    Usa `contratos_pendentes` (coletor 1.2.2 em diante) ou, nos metadados antigos, os itens "CNPJ AAAAT#"
+    de `pendentes`.
+    """
+    itens = controle.get("contratos_pendentes")
+    if itens is None:
+        itens = [p for p in controle.get("pendentes", []) if " " in str(p)]
+    faltam = set()
+    for item in itens:
+        cnpj, _, rotulo = str(item).partition(" ")
+        if cnpj and (ano is None or rotulo.startswith(str(ano))):
+            faltam.add(cnpj)
+    return sorted(faltam)
+
+
+def contratados_por_compra(contratos: pd.DataFrame) -> pd.Series:
+    """Fornecedor de cada contratação (pelo número de controle da compra), do contrato de maior valor.
+
+    Uma contratação com contratos de várias empresas vira "EMPRESA A e mais 2". Pessoas físicas e MEI chegam
+    com o nome e sem documento (LGPD); esta coluna é de tabela, então o nome aparece.
+    """
+    k = contratos[contratos["id_compra"].astype(str) != ""]
+    if k.empty:
+        return pd.Series(dtype=str)
+    k = k.assign(_valor=k["valor_global"].fillna(0)).sort_values("_valor", ascending=False)
+
+    def juntar(nomes: pd.Series) -> str:
+        unicos = list(dict.fromkeys(n for n in nomes if n))
+        if not unicos:
+            return ""
+        return unicos[0] if len(unicos) == 1 else f"{unicos[0]} e mais {len(unicos) - 1}"
+
+    return k.groupby("id_compra")["fornecedor_nome"].agg(juntar)

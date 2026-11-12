@@ -1,6 +1,8 @@
 """Página "Compras e contratos": licitações, dispensas e contratos dos órgãos municipais no PNCP.
 
-Fonte: API de consultas do PNCP. Fornecedores pessoa física e MEI aparecem sem nome e sem documento (LGPD).
+Fonte: API de consultas do PNCP. Fornecedores pessoa física e MEI: nome nas tabelas, sem nenhum número de
+documento; nos rankings e pontos de atenção aparecem agrupados (LGPD).
+A coluna "Contratado" vem dos contratos ligados a cada contratação (número de controle da compra no PNCP).
 """
 
 from __future__ import annotations
@@ -17,8 +19,9 @@ from despesas.alertas import (MIN_DISPENSAS_MESMO_FORNECEDOR, PRAZO_MINIMO_DIAS_
 from despesas.dicionarios import SIGLAS_MES
 from despesas.formatacao import brl, brl_compacto, numero, pct, razao
 from despesas.painel import (assinatura, cabecalho, carregar_compras, estilo_grafico, ler_metadados, md, mostrar,
-                             pasta_dados, sem_acento, selo_md, seletor_ano, tabela, tema)
-from despesas.pncp import url_contratacao, url_contrato
+                             nome_curto, orgaos_sem_contratos, pasta_dados, sem_acento, selo_md, seletor_ano, tabela,
+                             tema)
+from despesas.pncp import contratados_por_compra, url_contratacao, url_contrato
 
 PASTA = pasta_dados()
 meta = ler_metadados(PASTA)
@@ -46,14 +49,26 @@ if pncp.get("url_api") and pncp["url_api"] != config.URL_PNCP_OFICIAL:
     st.warning(f"Estes dados vieram de `{pncp['url_api']}`, não da API oficial do PNCP. Servem só para "
                "demonstração.", icon=":material/science:")
 
-orgaos = sorted(set(contratacoes["orgao_nome"]) | set(contratos["orgao_nome"]) - {""})
-if len(orgaos) > 1:
-    escolha = st.multiselect("Órgão", orgaos, placeholder="Todos os órgãos municipais")
-    if escolha:
-        contratacoes = contratacoes[contratacoes["orgao_nome"].isin(escolha)]
-        contratos = contratos[contratos["orgao_nome"].isin(escolha)]
+orgaos = sorted((set(contratacoes["orgao_nome"]) | set(contratos["orgao_nome"])) - {""})
+escolha = st.multiselect("Órgão", orgaos, placeholder="Todos os órgãos municipais") if len(orgaos) > 1 else []
+faltam = orgaos_sem_contratos(pncp, ano, contratacoes, contratos, escolha or None)
+if escolha:
+    contratacoes = contratacoes[contratacoes["orgao_nome"].isin(escolha)]
+    contratos = contratos[contratos["orgao_nome"].isin(escolha)]
+if faltam:
+    quais = ", ".join(faltam[:3]) + (f" e mais {len(faltam) - 3}" if len(faltam) > 3 else "")
+    st.warning(f"**A coleta dos contratos de {ano} ainda não terminou** para {len(faltam)} "
+               f"{'órgão' if len(faltam) == 1 else 'órgãos'} ({quais}). Até lá, os contratos, os maiores fornecedores "
+               "e a coluna \"Contratado\" estão incompletos. A próxima execução do robô continua de onde parou.",
+               icon=":material/hourglass_top:")
 
-a = analisar_compras(contratacoes, contratos, ano)
+a = analisar_compras(contratacoes, contratos, ano, orgaos_pendentes=faltam)
+
+
+def cnpj_formatado(doc: str) -> str:
+    """14 dígitos -> 12.345.678/0001-90; vazio (pessoa física e MEI, LGPD) -> "–"."""
+    d = "".join(ch for ch in str(doc) if ch.isdigit())
+    return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}" if len(d) == 14 else "–"
 
 
 def data_br(serie: pd.Series) -> pd.Series:
@@ -65,8 +80,16 @@ def com_link(df: pd.DataFrame, contrato: bool = False) -> pd.Series:
     return df.apply(funcao, axis=1) if len(df) else pd.Series(dtype=str)
 
 
+AGRUPADOS = "Pessoas físicas e MEI (somados)"
 LINK = st.column_config.LinkColumn("PNCP", display_text="Abrir", help="Abre a publicação no PNCP")
 OBJETO = st.column_config.Column("Objeto", width="large")
+CNPJ = st.column_config.Column("CNPJ", help="Pessoas físicas e microempreendedores individuais aparecem sem CPF ou "
+                                            "CNPJ (LGPD).")
+CONTRATADO = st.column_config.Column(
+    "Contratado", width="medium",
+    help="Empresa do contrato ligado a esta contratação no PNCP (\"e mais N\" quando há vários). Fica vazio "
+         "enquanto não há contrato publicado: licitação em andamento, registro de preços (ata) ou contrato ainda "
+         "não informado pelo órgão. Pessoas físicas e MEI aparecem sem CPF/CNPJ (LGPD).")
 
 # ------------------------------------------------------------------------------ KPIs
 validas = a.contratacoes[~a.contratacoes["situacao_id"].isin([2, 3]).fillna(False).astype(bool)]
@@ -81,7 +104,9 @@ k[2].metric("Contratação direta", pct(razao(a.direta_valor, a.total_valor)), b
             help="Parte do valor estimado contratada sem disputa entre empresas, nos casos que a lei permite.")
 total_contratos = float(a.contratos["valor_global"].fillna(0).sum())
 k[3].metric("Contratos assinados", brl_compacto(total_contratos), border=True,
-            delta=f"{numero(len(a.contratos), 0)} contratos e empenhos", delta_color="off", delta_arrow="off",
+            delta=(f"{numero(len(a.contratos), 0)} contratos · coleta incompleta" if faltam
+                   else f"{numero(len(a.contratos), 0)} contratos e empenhos"),
+            delta_color="off", delta_arrow="off",
             help="Valor global dos contratos (e empenhos que os substituem) assinados no ano.")
 
 # ------------------------------------------------------------------ pontos de atenção
@@ -176,19 +201,20 @@ with aba_geral:
 
     st.subheader("Maiores fornecedores")
     st.caption("Valor global dos contratos assinados no ano. Pessoas físicas e microempreendedores individuais "
-               "aparecem agrupados e sem identificação (LGPD).")
+               "aparecem somados numa barra só (LGPD); o nome de cada um está nas tabelas de contratos."
+               + (" **Incompleto: a coleta dos contratos ainda não terminou.**" if faltam else ""))
     if len(a.contratos):
         k_ = a.contratos.assign(rotulo=a.contratos["fornecedor_nome"].where(a.contratos["fornecedor_doc"] != "",
-                                                                             "Pessoas físicas e MEI (dados protegidos)"))
+                                                                             AGRUPADOS))
         top = k_.groupby("rotulo")["valor_global"].sum().sort_values(ascending=False)
-        protegidos = top.pop("Pessoas físicas e MEI (dados protegidos)") if "Pessoas físicas e MEI (dados protegidos)" in top else None
+        protegidos = top.pop(AGRUPADOS) if AGRUPADOS in top else None
         top = top.head(10)
         if protegidos is not None:
-            top = pd.concat([top, pd.Series({"Pessoas físicas e MEI (dados protegidos)": protegidos})])
+            top = pd.concat([top, pd.Series({AGRUPADOS: protegidos})])
         top = top.iloc[::-1]
         fig = go.Figure()
         fig.add_bar(y=top.index, x=top.values / 1e6, orientation="h", width=0.55, name="Valor contratado",
-                    marker=dict(color=[tema()["apagado"] if "protegidos" in n else cor for n in top.index], cornerradius=4),
+                    marker=dict(color=[tema()["apagado"] if n == AGRUPADOS else cor for n in top.index], cornerradius=4),
                     text=[f"{brl_compacto(v)} ({pct(v / total_contratos)})" for v in top.values], textposition="outside",
                     cliponaxis=False, customdata=[brl(v) for v in top.values],
                     hovertemplate="%{y}: %{customdata}<extra></extra>")
@@ -213,12 +239,18 @@ with aba_proc:
     if busca:
         t = t[t["objeto"].map(sem_acento).str.contains(sem_acento(busca), regex=False)]
     t = t.sort_values("data_publicacao", ascending=False)
+    t = t.assign(contratado=t["id_pncp"].map(contratados_por_compra(contratos)).fillna(""))
     tabela(pd.DataFrame({"Publicação": data_br(t["data_publicacao"]).values, "Modalidade": t["modalidade"].values,
-                         "Objeto": t["objeto"].values, "Órgão": t["orgao_nome"].values, "Situação": t["situacao"].values,
+                         "Objeto": t["objeto"].values, "Órgão": t["orgao_nome"].map(nome_curto).values,
+                         "Contratado": t["contratado"].replace("", "–").values, "Situação": t["situacao"].values,
                          "Valor estimado": t["valor_estimado"].values, "Valor homologado": t["valor_homologado"].values,
                          "PNCP": com_link(t).values}),
-           monetarias=["Valor estimado", "Valor homologado"], altura=480, colunas={"PNCP": LINK, "Objeto": OBJETO})
-    st.caption(md(f"{numero(len(t), 0)} contratações · valor estimado {brl(t['valor_estimado'].fillna(0).sum())}"))
+           monetarias=["Valor estimado", "Valor homologado"], altura=480,
+           colunas={"PNCP": LINK, "Objeto": OBJETO, "Contratado": CONTRATADO})
+    com_contrato = int((t["contratado"] != "").sum())
+    st.caption(md(f"{numero(len(t), 0)} contratações · valor estimado {brl(t['valor_estimado'].fillna(0).sum())} · "
+                  f"{numero(com_contrato, 0)} já com contrato publicado no PNCP"
+                  + (" (coleta dos contratos incompleta)" if faltam else "")))
     st.download_button("Baixar esta lista (CSV)", t.drop(columns=["publicacao"], errors="ignore")
                        .to_csv(sep=";", decimal=",", index=False).encode("utf-8-sig"),
                        file_name=f"contratacoes_{ano}.csv", mime="text/csv", icon=":material/download:")
@@ -233,10 +265,11 @@ with aba_contr:
         t = t[alvo.str.contains(sem_acento(busca_c), regex=False)]
     t = t.sort_values("data_assinatura", ascending=False)
     tabela(pd.DataFrame({"Assinatura": data_br(t["data_assinatura"]).values, "Fornecedor": t["fornecedor_nome"].values,
-                         "CNPJ": t["fornecedor_doc"].values, "Objeto": t["objeto"].values, "Tipo": t["tipo"].values,
+                         "CNPJ": t["fornecedor_doc"].map(cnpj_formatado).values, "Objeto": t["objeto"].values,
+                         "Tipo": t["tipo"].values,
                          "Valor global": t["valor_global"].values, "Fim da vigência": data_br(t["vigencia_fim"]).values,
                          "PNCP": com_link(t, contrato=True).values}),
-           monetarias=["Valor global"], altura=480, colunas={"PNCP": LINK, "Objeto": OBJETO})
+           monetarias=["Valor global"], altura=480, colunas={"PNCP": LINK, "Objeto": OBJETO, "CNPJ": CNPJ})
     st.caption(md(f"{numero(len(t), 0)} contratos · valor global {brl(t['valor_global'].fillna(0).sum())}"))
 
 # ---------------------------------------------------------------------- propostas abertas
@@ -265,8 +298,12 @@ with st.expander("Como ler estes números"):
 - **Valor estimado** é o que o órgão calculou antes da compra; **homologado**, o resultado da licitação.
 - Os dados são os que cada órgão publica no PNCP. Compras publicadas só no portal da transparência ou no
   Diário Oficial podem não aparecer aqui.
-- Fornecedores pessoa física e microempreendedores individuais (MEI) aparecem sem nome e sem documento, em
-  respeito à Lei Geral de Proteção de Dados; a publicação completa continua no PNCP.
+- **Contratado** é a empresa do contrato ligado à contratação. A publicação de uma licitação ou dispensa no PNCP
+  não traz o vencedor: ele aparece quando o órgão publica o contrato (ou, no registro de preços, a ata, que fica
+  no link do PNCP). Por isso parte das linhas fica sem nome.
+- Fornecedores pessoa física e microempreendedores individuais (MEI) aparecem com o nome nas tabelas, mas
+  sem CPF ou CNPJ, e somados num grupo só nos rankings e nos pontos de atenção, em respeito à Lei Geral de
+  Proteção de Dados. A publicação completa continua no PNCP.
 - Contratações de órgãos estaduais e federais com sede em {cidade} (universidades, por exemplo) não entram.
 """
     )
