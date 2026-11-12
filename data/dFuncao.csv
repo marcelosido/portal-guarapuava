@@ -1,0 +1,24 @@
+﻿funcao;funcao_desc
+01;Legislativa
+02;Judiciária
+04;Administração
+06;Segurança Pública
+08;Assistência Social
+09;Previdência Social
+10;Saúde
+11;Trabalho
+12;Educação
+13;Cultura
+14;Direitos da Cidadania
+15;Urbanismo
+16;Habitação
+17;Saneamento
+18;Gestão Ambiental
+19;Ciência e Tecnologia
+20;Agricultura
+22;Indústria
+23;Comércio e Serviços
+26;Transporte
+27;Desporto e Lazer
+28;Encargos Especiais
+99;Reserva de Contingência

@@ -1,0 +1,206 @@
+﻿natureza_despesa;natureza_formatada;natureza6;categoria;categoria_desc;grupo;grupo_desc;modalidade;modalidade_desc;elemento;elemento_desc
+31710000;3.1.71.00.00;317100;3;Despesas Correntes;1;Pessoal e Encargos Sociais;71;Transferências a Consórcios Públicos mediante contrato de rateio;00;Não detalhado (nível de modalidade)
+31720000;3.1.72.00.00;317200;3;Despesas Correntes;1;Pessoal e Encargos Sociais;72;Execução Orçamentária Delegada a Consórcios Públicos;00;Não detalhado (nível de modalidade)
+31900000;3.1.90.00.00;319000;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;00;Não detalhado (nível de modalidade)
+31900100;3.1.90.01.00;319001;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;01;Aposentadorias do RPPS, Reserva Remunerada e Reformas dos Militares
+31900101;3.1.90.01.01;319001;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;01;Aposentadorias do RPPS, Reserva Remunerada e Reformas dos Militares
+31900106;3.1.90.01.06;319001;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;01;Aposentadorias do RPPS, Reserva Remunerada e Reformas dos Militares
+31900300;3.1.90.03.00;319003;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;03;Pensões do RPPS e do Militar
+31900301;3.1.90.03.01;319003;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;03;Pensões do RPPS e do Militar
+31900303;3.1.90.03.03;319003;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;03;Pensões do RPPS e do Militar
+31900400;3.1.90.04.00;319004;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;04;Contratação por Tempo Determinado
+31900500;3.1.90.05.00;319005;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;05;Outros Benefícios Previdenciários do Servidor ou do Militar
+31900503;3.1.90.05.03;319005;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;05;Outros Benefícios Previdenciários do Servidor ou do Militar
+31900700;3.1.90.07.00;319007;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;07;Contribuição a Entidades Fechadas de Previdência
+31900701;3.1.90.07.01;319007;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;07;Contribuição a Entidades Fechadas de Previdência
+31901100;3.1.90.11.00;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901101;3.1.90.11.01;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901105;3.1.90.11.05;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901107;3.1.90.11.07;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901131;3.1.90.11.31;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901133;3.1.90.11.33;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901137;3.1.90.11.37;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901142;3.1.90.11.42;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901143;3.1.90.11.43;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901144;3.1.90.11.44;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901145;3.1.90.11.45;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901147;3.1.90.11.47;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901150;3.1.90.11.50;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901152;3.1.90.11.52;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901174;3.1.90.11.74;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901175;3.1.90.11.75;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901199;3.1.90.11.99;319011;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;11;Vencimentos e Vantagens Fixas - Pessoal Civil
+31901300;3.1.90.13.00;319013;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;13;Obrigações Patronais
+31901301;3.1.90.13.01;319013;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;13;Obrigações Patronais
+31901302;3.1.90.13.02;319013;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;13;Obrigações Patronais
+31901307;3.1.90.13.07;319013;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;13;Obrigações Patronais
+31901310;3.1.90.13.10;319013;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;13;Obrigações Patronais
+31901318;3.1.90.13.18;319013;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;13;Obrigações Patronais
+31901340;3.1.90.13.40;319013;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;13;Obrigações Patronais
+31901399;3.1.90.13.99;319013;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;13;Obrigações Patronais
+31901600;3.1.90.16.00;319016;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;16;Outras Despesas Variáveis - Pessoal Civil
+31901644;3.1.90.16.44;319016;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;16;Outras Despesas Variáveis - Pessoal Civil
+31901699;3.1.90.16.99;319016;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;16;Outras Despesas Variáveis - Pessoal Civil
+31906700;3.1.90.67.00;319067;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;67;Elemento 67
+31909100;3.1.90.91.00;319091;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;91;Sentenças Judiciais
+31909101;3.1.90.91.01;319091;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;91;Sentenças Judiciais
+31909108;3.1.90.91.08;319091;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;91;Sentenças Judiciais
+31909109;3.1.90.91.09;319091;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;91;Sentenças Judiciais
+31909120;3.1.90.91.20;319091;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;91;Sentenças Judiciais
+31909123;3.1.90.91.23;319091;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;91;Sentenças Judiciais
+31909125;3.1.90.91.25;319091;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;91;Sentenças Judiciais
+31909128;3.1.90.91.28;319091;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;91;Sentenças Judiciais
+31909130;3.1.90.91.30;319091;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;91;Sentenças Judiciais
+31909199;3.1.90.91.99;319091;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;91;Sentenças Judiciais
+31909400;3.1.90.94.00;319094;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;94;Indenizações e Restituições Trabalhistas
+31909401;3.1.90.94.01;319094;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;94;Indenizações e Restituições Trabalhistas
+31909499;3.1.90.94.99;319094;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;94;Indenizações e Restituições Trabalhistas
+31909600;3.1.90.96.00;319096;3;Despesas Correntes;1;Pessoal e Encargos Sociais;90;Aplicações Diretas;96;Ressarcimento de Despesas de Pessoal Requisitado
+31911300;3.1.91.13.00;319113;3;Despesas Correntes;1;Pessoal e Encargos Sociais;91;Aplicação Direta Decorrente de Operação entre Órgãos, Fundos e Entidades Integrantes dos Orçamentos Fiscal e da Seguridade Social;13;Obrigações Patronais
+31911308;3.1.91.13.08;319113;3;Despesas Correntes;1;Pessoal e Encargos Sociais;91;Aplicação Direta Decorrente de Operação entre Órgãos, Fundos e Entidades Integrantes dos Orçamentos Fiscal e da Seguridade Social;13;Obrigações Patronais
+31911311;3.1.91.13.11;319113;3;Despesas Correntes;1;Pessoal e Encargos Sociais;91;Aplicação Direta Decorrente de Operação entre Órgãos, Fundos e Entidades Integrantes dos Orçamentos Fiscal e da Seguridade Social;13;Obrigações Patronais
+31911399;3.1.91.13.99;319113;3;Despesas Correntes;1;Pessoal e Encargos Sociais;91;Aplicação Direta Decorrente de Operação entre Órgãos, Fundos e Entidades Integrantes dos Orçamentos Fiscal e da Seguridade Social;13;Obrigações Patronais
+32600000;3.2.60.00.00;326000;3;Despesas Correntes;2;Juros e Encargos da Dívida;60;Transferências a Instituições Privadas com Fins Lucrativos;00;Não detalhado (nível de modalidade)
+32902100;3.2.90.21.00;329021;3;Despesas Correntes;2;Juros e Encargos da Dívida;90;Aplicações Diretas;21;Juros sobre a Dívida por Contrato
+32902101;3.2.90.21.01;329021;3;Despesas Correntes;2;Juros e Encargos da Dívida;90;Aplicações Diretas;21;Juros sobre a Dívida por Contrato
+32902200;3.2.90.22.00;329022;3;Despesas Correntes;2;Juros e Encargos da Dívida;90;Aplicações Diretas;22;Outros Encargos sobre a Dívida por Contrato
+32902201;3.2.90.22.01;329022;3;Despesas Correntes;2;Juros e Encargos da Dívida;90;Aplicações Diretas;22;Outros Encargos sobre a Dívida por Contrato
+32902299;3.2.90.22.99;329022;3;Despesas Correntes;2;Juros e Encargos da Dívida;90;Aplicações Diretas;22;Outros Encargos sobre a Dívida por Contrato
+33304100;3.3.30.41.00;333041;3;Despesas Correntes;3;Outras Despesas Correntes;30;Transferências a Estados e ao Distrito Federal;41;Contribuições
+33410000;3.3.41.00.00;334100;3;Despesas Correntes;3;Outras Despesas Correntes;41;Transferências a Municípios - Fundo a Fundo;00;Não detalhado (nível de modalidade)
+33414100;3.3.41.41.00;334141;3;Despesas Correntes;3;Outras Despesas Correntes;41;Transferências a Municípios - Fundo a Fundo;41;Contribuições
+33504300;3.3.50.43.00;335043;3;Despesas Correntes;3;Outras Despesas Correntes;50;Transferências a Instituições Privadas sem Fins Lucrativos;43;Subvenções Sociais
+33504305;3.3.50.43.05;335043;3;Despesas Correntes;3;Outras Despesas Correntes;50;Transferências a Instituições Privadas sem Fins Lucrativos;43;Subvenções Sociais
+33504399;3.3.50.43.99;335043;3;Despesas Correntes;3;Outras Despesas Correntes;50;Transferências a Instituições Privadas sem Fins Lucrativos;43;Subvenções Sociais
+33604500;3.3.60.45.00;336045;3;Despesas Correntes;3;Outras Despesas Correntes;60;Transferências a Instituições Privadas com Fins Lucrativos;45;Subvenções Econômicas
+33670000;3.3.67.00.00;336700;3;Despesas Correntes;3;Outras Despesas Correntes;67;Modalidade 67;00;Não detalhado (nível de modalidade)
+33678200;3.3.67.82.00;336782;3;Despesas Correntes;3;Outras Despesas Correntes;67;Modalidade 67;82;Elemento 82
+33678300;3.3.67.83.00;336783;3;Despesas Correntes;3;Outras Despesas Correntes;67;Modalidade 67;83;Elemento 83
+33710000;3.3.71.00.00;337100;3;Despesas Correntes;3;Outras Despesas Correntes;71;Transferências a Consórcios Públicos mediante contrato de rateio;00;Não detalhado (nível de modalidade)
+33720000;3.3.72.00.00;337200;3;Despesas Correntes;3;Outras Despesas Correntes;72;Execução Orçamentária Delegada a Consórcios Públicos;00;Não detalhado (nível de modalidade)
+33723900;3.3.72.39.00;337239;3;Despesas Correntes;3;Outras Despesas Correntes;72;Execução Orçamentária Delegada a Consórcios Públicos;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33729900;3.3.72.99.00;337299;3;Despesas Correntes;3;Outras Despesas Correntes;72;Execução Orçamentária Delegada a Consórcios Públicos;99;A Classificar
+33900000;3.3.90.00.00;339000;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;00;Não detalhado (nível de modalidade)
+33900800;3.3.90.08.00;339008;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;08;Outros Benefícios Assistenciais do Servidor e do Militar
+33900801;3.3.90.08.01;339008;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;08;Outros Benefícios Assistenciais do Servidor e do Militar
+33900805;3.3.90.08.05;339008;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;08;Outros Benefícios Assistenciais do Servidor e do Militar
+33900811;3.3.90.08.11;339008;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;08;Outros Benefícios Assistenciais do Servidor e do Militar
+33900856;3.3.90.08.56;339008;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;08;Outros Benefícios Assistenciais do Servidor e do Militar
+33900899;3.3.90.08.99;339008;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;08;Outros Benefícios Assistenciais do Servidor e do Militar
+33901400;3.3.90.14.00;339014;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;14;Diárias - Civil
+33901800;3.3.90.18.00;339018;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;18;Auxílio Financeiro a Estudantes
+33902000;3.3.90.20.00;339020;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;20;Auxílio Financeiro a Pesquisadores
+33903000;3.3.90.30.00;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903001;3.3.90.30.01;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903007;3.3.90.30.07;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903009;3.3.90.30.09;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903010;3.3.90.30.10;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903011;3.3.90.30.11;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903014;3.3.90.30.14;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903016;3.3.90.30.16;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903017;3.3.90.30.17;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903020;3.3.90.30.20;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903021;3.3.90.30.21;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903023;3.3.90.30.23;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903028;3.3.90.30.28;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903035;3.3.90.30.35;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903036;3.3.90.30.36;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903039;3.3.90.30.39;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903060;3.3.90.30.60;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903099;3.3.90.30.99;339030;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;30;Material de Consumo
+33903100;3.3.90.31.00;339031;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;31;Premiações Culturais, Artísticas, Científicas, Desportivas e Outras
+33903200;3.3.90.32.00;339032;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;32;Material, Bem ou Serviço para Distribuição Gratuita
+33903203;3.3.90.32.03;339032;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;32;Material, Bem ou Serviço para Distribuição Gratuita
+33903204;3.3.90.32.04;339032;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;32;Material, Bem ou Serviço para Distribuição Gratuita
+33903299;3.3.90.32.99;339032;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;32;Material, Bem ou Serviço para Distribuição Gratuita
+33903300;3.3.90.33.00;339033;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;33;Passagens e Despesas com Locomoção
+33903400;3.3.90.34.00;339034;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;34;Outras Despesas de Pessoal Decorrentes de Contratos de Terceirização
+33903500;3.3.90.35.00;339035;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;35;Serviços de Consultoria
+33903600;3.3.90.36.00;339036;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;36;Outros Serviços de Terceiros - Pessoa Física
+33903607;3.3.90.36.07;339036;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;36;Outros Serviços de Terceiros - Pessoa Física
+33903645;3.3.90.36.45;339036;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;36;Outros Serviços de Terceiros - Pessoa Física
+33903699;3.3.90.36.99;339036;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;36;Outros Serviços de Terceiros - Pessoa Física
+33903700;3.3.90.37.00;339037;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;37;Locação de Mão de Obra
+33903900;3.3.90.39.00;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903917;3.3.90.39.17;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903932;3.3.90.39.32;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903943;3.3.90.39.43;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903944;3.3.90.39.44;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903947;3.3.90.39.47;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903950;3.3.90.39.50;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903970;3.3.90.39.70;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903972;3.3.90.39.72;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903977;3.3.90.39.77;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903978;3.3.90.39.78;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903990;3.3.90.39.90;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33903999;3.3.90.39.99;339039;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+33904000;3.3.90.40.00;339040;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;40;Serviços de Tecnologia da Informação e Comunicação - Pessoa Jurídica
+33904001;3.3.90.40.01;339040;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;40;Serviços de Tecnologia da Informação e Comunicação - Pessoa Jurídica
+33904006;3.3.90.40.06;339040;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;40;Serviços de Tecnologia da Informação e Comunicação - Pessoa Jurídica
+33904012;3.3.90.40.12;339040;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;40;Serviços de Tecnologia da Informação e Comunicação - Pessoa Jurídica
+33904014;3.3.90.40.14;339040;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;40;Serviços de Tecnologia da Informação e Comunicação - Pessoa Jurídica
+33904099;3.3.90.40.99;339040;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;40;Serviços de Tecnologia da Informação e Comunicação - Pessoa Jurídica
+33904600;3.3.90.46.00;339046;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;46;Auxílio-Alimentação
+33904700;3.3.90.47.00;339047;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;47;Obrigações Tributárias e Contributivas
+33904800;3.3.90.48.00;339048;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;48;Outros Auxílios Financeiros a Pessoas Físicas
+33904806;3.3.90.48.06;339048;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;48;Outros Auxílios Financeiros a Pessoas Físicas
+33904807;3.3.90.48.07;339048;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;48;Outros Auxílios Financeiros a Pessoas Físicas
+33904899;3.3.90.48.99;339048;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;48;Outros Auxílios Financeiros a Pessoas Físicas
+33904900;3.3.90.49.00;339049;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;49;Auxílio-Transporte
+33906700;3.3.90.67.00;339067;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;67;Elemento 67
+33908600;3.3.90.86.00;339086;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;86;Elemento 86
+33909100;3.3.90.91.00;339091;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;91;Sentenças Judiciais
+33909102;3.3.90.91.02;339091;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;91;Sentenças Judiciais
+33909103;3.3.90.91.03;339091;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;91;Sentenças Judiciais
+33909104;3.3.90.91.04;339091;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;91;Sentenças Judiciais
+33909105;3.3.90.91.05;339091;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;91;Sentenças Judiciais
+33909120;3.3.90.91.20;339091;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;91;Sentenças Judiciais
+33909199;3.3.90.91.99;339091;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;91;Sentenças Judiciais
+33909200;3.3.90.92.00;339092;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;92;Despesas de Exercícios Anteriores
+33909233;3.3.90.92.33;339092;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;92;Despesas de Exercícios Anteriores
+33909239;3.3.90.92.39;339092;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;92;Despesas de Exercícios Anteriores
+33909240;3.3.90.92.40;339092;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;92;Despesas de Exercícios Anteriores
+33909300;3.3.90.93.00;339093;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;93;Indenizações e Restituições
+33909301;3.3.90.93.01;339093;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;93;Indenizações e Restituições
+33909302;3.3.90.93.02;339093;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;93;Indenizações e Restituições
+33909314;3.3.90.93.14;339093;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;93;Indenizações e Restituições
+33909399;3.3.90.93.99;339093;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;93;Indenizações e Restituições
+33909600;3.3.90.96.00;339096;3;Despesas Correntes;3;Outras Despesas Correntes;90;Aplicações Diretas;96;Ressarcimento de Despesas de Pessoal Requisitado
+33919700;3.3.91.97.00;339197;3;Despesas Correntes;3;Outras Despesas Correntes;91;Aplicação Direta Decorrente de Operação entre Órgãos, Fundos e Entidades Integrantes dos Orçamentos Fiscal e da Seguridade Social;97;Aporte para Cobertura do Déficit Atuarial do RPPS
+40000000;4.0.00.00.00;400000;4;Despesas de Capital;0;Grupo 0;00;Modalidade 00;00;Não detalhado (nível de modalidade)
+44410000;4.4.41.00.00;444100;4;Despesas de Capital;4;Investimentos;41;Transferências a Municípios - Fundo a Fundo;00;Não detalhado (nível de modalidade)
+44414100;4.4.41.41.00;444141;4;Despesas de Capital;4;Investimentos;41;Transferências a Municípios - Fundo a Fundo;41;Contribuições
+44414200;4.4.41.42.00;444142;4;Despesas de Capital;4;Investimentos;41;Transferências a Municípios - Fundo a Fundo;42;Auxílios
+44505100;4.4.50.51.00;445051;4;Despesas de Capital;4;Investimentos;50;Transferências a Instituições Privadas sem Fins Lucrativos;51;Obras e Instalações
+44505200;4.4.50.52.00;445052;4;Despesas de Capital;4;Investimentos;50;Transferências a Instituições Privadas sem Fins Lucrativos;52;Equipamentos e Material Permanente
+44600000;4.4.60.00.00;446000;4;Despesas de Capital;4;Investimentos;60;Transferências a Instituições Privadas com Fins Lucrativos;00;Não detalhado (nível de modalidade)
+44670000;4.4.67.00.00;446700;4;Despesas de Capital;4;Investimentos;67;Modalidade 67;00;Não detalhado (nível de modalidade)
+44678200;4.4.67.82.00;446782;4;Despesas de Capital;4;Investimentos;67;Modalidade 67;82;Elemento 82
+44710000;4.4.71.00.00;447100;4;Despesas de Capital;4;Investimentos;71;Transferências a Consórcios Públicos mediante contrato de rateio;00;Não detalhado (nível de modalidade)
+44903000;4.4.90.30.00;449030;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;30;Material de Consumo
+44903009;4.4.90.30.09;449030;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;30;Material de Consumo
+44903036;4.4.90.30.36;449030;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;30;Material de Consumo
+44903099;4.4.90.30.99;449030;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;30;Material de Consumo
+44903900;4.4.90.39.00;449039;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;39;Outros Serviços de Terceiros - Pessoa Jurídica
+44904000;4.4.90.40.00;449040;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;40;Serviços de Tecnologia da Informação e Comunicação - Pessoa Jurídica
+44905100;4.4.90.51.00;449051;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;51;Obras e Instalações
+44905191;4.4.90.51.91;449051;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;51;Obras e Instalações
+44905199;4.4.90.51.99;449051;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;51;Obras e Instalações
+44905200;4.4.90.52.00;449052;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;52;Equipamentos e Material Permanente
+44905208;4.4.90.52.08;449052;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;52;Equipamentos e Material Permanente
+44905242;4.4.90.52.42;449052;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;52;Equipamentos e Material Permanente
+44905248;4.4.90.52.48;449052;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;52;Equipamentos e Material Permanente
+44905252;4.4.90.52.52;449052;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;52;Equipamentos e Material Permanente
+44905299;4.4.90.52.99;449052;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;52;Equipamentos e Material Permanente
+44906100;4.4.90.61.00;449061;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;61;Aquisição de Imóveis
+44909100;4.4.90.91.00;449091;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;91;Sentenças Judiciais
+44909300;4.4.90.93.00;449093;4;Despesas de Capital;4;Investimentos;90;Aplicações Diretas;93;Indenizações e Restituições
+45902700;4.5.90.27.00;459027;4;Despesas de Capital;5;Inversões Financeiras;90;Aplicações Diretas;27;Elemento 27
+45906300;4.5.90.63.00;459063;4;Despesas de Capital;5;Inversões Financeiras;90;Aplicações Diretas;63;Elemento 63
+45906400;4.5.90.64.00;459064;4;Despesas de Capital;5;Inversões Financeiras;90;Aplicações Diretas;64;Elemento 64
+45906500;4.5.90.65.00;459065;4;Despesas de Capital;5;Inversões Financeiras;90;Aplicações Diretas;65;Constituição ou Aumento de Capital de Empresas
+46907100;4.6.90.71.00;469071;4;Despesas de Capital;6;Amortização da Dívida;90;Aplicações Diretas;71;Principal da Dívida Contratual Resgatado
+46907101;4.6.90.71.01;469071;4;Despesas de Capital;6;Amortização da Dívida;90;Aplicações Diretas;71;Principal da Dívida Contratual Resgatado
+46907199;4.6.90.71.99;469071;4;Despesas de Capital;6;Amortização da Dívida;90;Aplicações Diretas;71;Principal da Dívida Contratual Resgatado
+46909100;4.6.90.91.00;469091;4;Despesas de Capital;6;Amortização da Dívida;90;Aplicações Diretas;91;Sentenças Judiciais
+99999999;9.9.99.99.99;999999;9;Reserva de Contingência;9;Reserva de Contingência;99;A Definir;99;A Classificar

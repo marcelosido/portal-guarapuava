@@ -1,0 +1,24 @@
+{
+  "id_ente": "4109401",
+  "nome_ente": "Guarapuava - PR",
+  "fonte": "Tesouro Nacional / SICONFI – MSC orçamentária, RREO (Anexos 1 e 14) e RGF (Anexos 1 e 2)",
+  "url_api": "https://apidatalake.tesouro.gov.br/ords/siconfi/tt/",
+  "coletado_em": "2026-11-12T14:21:28+00:00",
+  "versao_coletor": "1.1.0",
+  "primeiro_mes": "2019-01",
+  "ultimo_mes": "2026-09",
+  "meses": 93,
+  "linhas": 204076,
+  "ultimo_rreo": "2026-4",
+  "ultimo_rgf": "2026-2",
+  "requisicoes": 434,
+  "meses_coletados_nesta_execucao": 93,
+  "meses_ainda_nao_publicados": [
+    "10/2026",
+    "11/2026"
+  ],
+  "relatorios_ausentes": [
+    "RREO 2026/5"
+  ],
+  "falhas": []
+}
