@@ -1,0 +1,15 @@
+# Cor de destaque nos dois temas (o portal segue o tema claro/escuro do sistema do usuário).
+[theme.light]
+primaryColor = "#2a78d6"
+
+[theme.dark]
+primaryColor = "#3987e5"
+
+[client]
+toolbarMode = "minimal"   # esconde o botão "Deploy" do Streamlit
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
