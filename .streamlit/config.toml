@@ -1,9 +1,22 @@
-# Cor de destaque nos dois temas (o portal segue o tema claro/escuro do sistema do usuário).
+# Cores do portal, tiradas do cabeçalho "Planalto com geada".
+# Tema claro: fundo azul-geada bem suave e texto azul-marinho. Tema escuro: a mesma cena à noite.
+# O portal segue o tema do sistema do usuário (claro/escuro); dá para trocar no menu ⋮ > Settings.
+# Se mudar backgroundColor ou textColor, ajuste também "superficie" e "tinta" em despesas/painel.py.
 [theme.light]
 primaryColor = "#2a78d6"
+backgroundColor = "#f5f8fc"
+secondaryBackgroundColor = "#e4ecf6"
+textColor = "#15253b"
+linkColor = "#1c5cab"
+borderColor = "#cfdbe9"
 
 [theme.dark]
 primaryColor = "#3987e5"
+backgroundColor = "#0d1626"
+secondaryBackgroundColor = "#172339"
+textColor = "#e7edf5"
+linkColor = "#8ab8f0"
+borderColor = "#2a3a55"
 
 [client]
 toolbarMode = "minimal"   # esconde o botão "Deploy" do Streamlit
