@@ -3,6 +3,7 @@
 import streamlit as st
 
 from despesas import config
+from despesas.painel import topo_portal
 
 cidade = config.NOME_ENTE.split(" - ")[0]
 st.set_page_config(page_title=f"{cidade} em números", page_icon=":material/account_balance:", layout="wide")
@@ -15,4 +16,6 @@ paginas = [
     st.Page("paginas/comparar.py", title="Comparar cidades", icon=":material/map:", url_path="comparar"),
     st.Page("paginas/sobre.py", title="Sobre os dados", icon=":material/info:", url_path="sobre"),
 ]
-st.navigation(paginas, position="top").run()
+pagina = st.navigation(paginas, position="top")
+topo_portal(f"{cidade} em números", "Contas públicas da prefeitura em dados abertos e oficiais")
+pagina.run()

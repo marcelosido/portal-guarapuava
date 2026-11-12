@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import html
 import io
 import json
 import os
+import re
 import unicodedata
 import zipfile
 from pathlib import Path
@@ -26,12 +28,14 @@ LARANJA = "#eb6834"                       # 2ª série (ex.: a cidade comparada)
 VERDE_AGUA = "#1baf7a"                    # 3ª série
 
 # Tokens por tema. A rampa sequencial (mapa) vai do claro ao escuro no tema claro e se inverte no escuro.
+# "superficie" e as tintas acompanham o fundo e o texto do .streamlit/config.toml (tons do cabeçalho):
+# se mudar um, mude o outro.
 TOKENS = {
-    "light": {"serie": [AZUL, LARANJA, VERDE_AGUA], "superficie": "#ffffff", "tinta": "#0b0b0b",
-              "tinta2": "#52514e", "apagado": "#898781", "sem_dado": "#e1e0d9", "grade": "#e1e0d9",
+    "light": {"serie": [AZUL, LARANJA, VERDE_AGUA], "superficie": "#f5f8fc", "tinta": "#15253b",
+              "tinta2": "#4a586c", "apagado": "#898781", "sem_dado": "#e1e0d9", "grade": "#e1e0d9",
               "sequencial": ["#b7d3f6", "#6da7ec", "#2a78d6", "#1c5cab", "#104281"]},
-    "dark": {"serie": ["#3987e5", "#d95926", "#199e70"], "superficie": "#0e1117", "tinta": "#f0efec",
-             "tinta2": "#c3c2b7", "apagado": "#898781", "sem_dado": "#383835", "grade": "#2c2c2a",
+    "dark": {"serie": ["#3987e5", "#d95926", "#199e70"], "superficie": "#0d1626", "tinta": "#e7edf5",
+             "tinta2": "#b9c5d6", "apagado": "#898781", "sem_dado": "#383835", "grade": "#2c2c2a",
              "sequencial": ["#104281", "#1c5cab", "#2a78d6", "#6da7ec", "#b7d3f6"]},
 }
 
@@ -199,6 +203,26 @@ def aviso_demonstracao(meta: dict) -> None:
             "Servem só para demonstração – rode `python coletar.py` para carregar os dados reais.",
             icon=":material/science:",
         )
+
+
+def topo_portal(nome: str, subtitulo: str) -> None:
+    """Faixa do topo, igual em todas as páginas: ilustração do planalto com o nome do portal por cima.
+
+    A ilustração (recursos/cabecalho.svg) é decorativa e muda sozinha com o tema: dia no claro, noite no
+    escuro (regras em recursos/cabecalho.css). Sem os arquivos, o nome continua aparecendo sobre um degradê.
+    """
+    pasta = config.PASTA_RECURSOS
+    try:
+        arte = (pasta / "cabecalho.svg").read_text(encoding="utf-8")
+        estilo = (pasta / "cabecalho.css").read_text(encoding="utf-8")
+    except OSError:
+        arte, estilo = "", ""
+    # CSS numa linha só (sem comentários): o bloco HTML do Markdown não pode ter linhas em branco.
+    estilo = " ".join(re.sub(r"/\*.*?\*/", "", estilo, flags=re.DOTALL).split())
+    # st.markdown (e não st.html): o st.html remove SVG; aqui o desenho entra na página e segue o tema.
+    st.markdown(f"<style>{estilo}</style><div class='gp-topo'>{arte}<div class='gp-texto'>"
+                f"<p class='gp-nome'>{html.escape(nome)}</p><p class='gp-sub'>{html.escape(subtitulo)}</p></div></div>",
+                unsafe_allow_html=True)
 
 
 def sem_dados() -> None:

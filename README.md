@@ -44,6 +44,12 @@ quando um código não aparece, o indicador fica em branco – nada é estimado.
   saúde, transporte, salários, investimentos e receita por habitante, com a posição entre os 399 municípios.
 - **Sobre os dados**: fontes, atualização, conferência MSC × RREO, critérios dos pontos de atenção, LGPD e downloads.
 
+Todas as páginas abrem com o cabeçalho **"Planalto com geada"** (campos com araucárias, geada e sol nascendo). No
+tema escuro, a mesma cena aparece à noite, com lua e estrelas. As cores do portal saem do cabeçalho: no tema claro, fundo azul-geada
+(`#f5f8fc`) e texto azul-marinho (`#15253b`); no escuro, fundo azul-noite (`#0d1626`) e texto `#e7edf5`. Elas ficam em
+`.streamlit/config.toml`, e as mesmas cores de fundo e texto ficam em `TOKENS`, em `despesas/painel.py`, porque os
+gráficos usam essas cores. Um teste confere se as duas estão iguais.
+
 ## Pontos de atenção
 
 Um ponto de atenção não é acusação nem indício de irregularidade: é um número que passa de um limite legal ou que
@@ -151,8 +157,9 @@ paginas/                     indicadores (Visão geral), receitas, despesa, comp
 coletar.py                   coleta: município, PNCP e comparativo, com limite de tempo
 conciliar_atende.py          conferência com o CSV do portal da transparência
 despesas/                    api, indicadores, transformacao, pncp, comparativo, alertas, painel, dicionarios, config
-despesas/recursos/           malha municipal do PR (IBGE, via geodata-br, domínio público), simplificada
+despesas/recursos/           malha municipal do PR (IBGE, via geodata-br, domínio público), simplificada;
+                             cabecalho.svg e cabecalho.css (ilustração do topo, dia/noite)
 tests/                       testes, linhas reais da API e APIs simuladas
 .github/workflows/           robô de atualização
-.streamlit/config.toml       tema claro/escuro
+.streamlit/config.toml       cores dos temas claro e escuro (tiradas do cabeçalho)
 ```

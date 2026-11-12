@@ -26,6 +26,8 @@ def abrir(pasta, monkeypatch, pagina: str | None = None):
     if pagina:
         at.switch_page(pagina).run()
     assert not at.exception, at.exception
+    topo = at.markdown[0].value  # todas as páginas começam pelo cabeçalho com a ilustração
+    assert "class='gp-topo'" in topo and "<svg" in topo and "Guarapuava em números" in topo
     return at
 
 
@@ -35,7 +37,7 @@ def textos(at) -> str:
 
 def test_visao_geral(pasta, monkeypatch):
     at = abrir(pasta, monkeypatch)
-    assert at.title[0].value == "Guarapuava em números"
+    assert at.title[0].value == "Visão geral"
     assert "Pontos de atenção" in [s.value for s in at.subheader]
     assert "Gasto com pessoal da Prefeitura: acima do limite de alerta" in textos(at)
     assert ":orange-badge[:material/warning: Atenção]" in textos(at)  # cor sempre com ícone e texto

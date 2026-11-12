@@ -1,0 +1,56 @@
+/* Cabeçalho do portal: ilustração "Planalto com geada" (campos com araucárias, geada e sol nascendo).
+   No tema claro aparece de dia; no tema escuro, a mesma cena à noite (lua e estrelas).
+   Cada cor aparece duas vezes: a primeira é a do dia e vale em navegadores antigos;
+   a segunda usa light-dark(dia, noite) e acompanha o tema escolhido no portal. */
+
+.gp-topo {
+  position: relative; width: 100%; aspect-ratio: 1600 / 300; min-height: 150px; max-height: 250px;
+  border-radius: 14px; overflow: hidden; container-type: inline-size;
+  background: linear-gradient(#bcd5f2, #fbe7cf);
+  background: linear-gradient(light-dark(#bcd5f2, #132a52), light-dark(#fbe7cf, #3d5a8a));
+  /* a parte de baixo (campo com geada) se dissolve no fundo da página */
+  -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent);
+  mask-image: linear-gradient(to bottom, #000 72%, transparent);
+}
+/* o cabeçalho fica logo abaixo do menu (o Streamlit deixa 8rem livres no topo) */
+[data-testid="stMainBlockContainer"][data-testid] { padding-top: 4.75rem; }
+.gp-arte { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.gp-texto { position: relative; text-align: center; padding: 16px 16px 0; padding-top: clamp(12px, 1.9cqw, 26px); }
+.gp-texto p { margin: 0; }
+.gp-texto .gp-nome {
+  font-weight: 700; line-height: 1.12; letter-spacing: -0.01em;
+  font-size: 1.5rem; font-size: clamp(1.3rem, 2.9cqw, 2.35rem);
+  color: #12294d; color: light-dark(#12294d, #f3f7fd);
+  text-shadow: 0 0 14px rgba(226, 236, 250, .9);
+  text-shadow: 0 0 14px light-dark(rgba(226, 236, 250, .9), rgba(12, 26, 52, .9));
+}
+.gp-texto .gp-sub {
+  margin-top: .3rem; line-height: 1.3; text-wrap: balance;
+  font-size: .9rem; font-size: clamp(.8rem, 1.25cqw, 1.05rem);
+  color: #2b4670; color: light-dark(#2b4670, #c8d6ec);
+  text-shadow: 0 0 10px rgba(226, 236, 250, .9);
+  text-shadow: 0 0 10px light-dark(rgba(226, 236, 250, .9), rgba(12, 26, 52, .9));
+}
+
+/* Cores da cena (classes usadas no cabecalho.svg) */
+.gp-k1{stop-color:#bcd5f2;stop-color:light-dark(#bcd5f2,#132a52)}
+.gp-k2{stop-color:#e6eefa;stop-color:light-dark(#e6eefa,#22406f)}
+.gp-k3{stop-color:#fbe7cf;stop-color:light-dark(#fbe7cf,#3d5a8a)}
+.gp-s1{stop-color:#fff6e3;stop-color:light-dark(#fff6e3,rgba(232,240,252,0.60))}
+.gp-s2{stop-opacity:1;stop-color:rgba(255,226,179,0.9);stop-color:light-dark(rgba(255,226,179,0.9),rgba(196,214,242,0.20))}
+.gp-s3{stop-opacity:1;stop-color:rgba(255,226,179,0);stop-color:light-dark(rgba(255,226,179,0),rgba(196,214,242,0))}
+.gp-sd{fill:#fff4dd;fill:light-dark(#fff4dd,#eef3fb)}
+.gp-es{fill:rgba(255,255,255,0);fill:light-dark(rgba(255,255,255,0),#f2f6ff)}
+.gp-h1{fill:#9fb8d6;fill:light-dark(#9fb8d6,#2c4777)}
+.gp-h2{fill:#7f9cc1;fill:light-dark(#7f9cc1,#223a66)}
+.gp-h3{fill:#4f6f99;fill:light-dark(#4f6f99,#192f56)}
+.gp-t1{fill:#8aa6c8;fill:light-dark(#8aa6c8,#1d3359)}
+.gp-t1 [stroke]{stroke:#8aa6c8;stroke:light-dark(#8aa6c8,#1d3359)}
+.gp-t2{fill:#6383ad;fill:light-dark(#6383ad,#14284a)}
+.gp-t2 [stroke]{stroke:#6383ad;stroke:light-dark(#6383ad,#14284a)}
+.gp-g1{stop-color:#e3edf6;stop-color:light-dark(#e3edf6,#33507c)}
+.gp-g2{stop-color:#c9d9ea;stop-color:light-dark(#c9d9ea,#1f3456)}
+.gp-gr{stroke:#ffffff;stroke:light-dark(#ffffff,#dbe8fa)}
+.gp-t3{fill:#27486f;fill:light-dark(#27486f,#08111f)}
+.gp-t3 [stroke]{stroke:#27486f;stroke:light-dark(#27486f,#08111f)}
+.gp-br{fill:#ffffff;fill:light-dark(#ffffff,#eef5ff)}

@@ -22,13 +22,11 @@ from despesas.painel import (AZUL, CINZA, assinatura, aviso_demonstracao, cabeca
 
 PASTA = pasta_dados()
 meta = ler_metadados(PASTA)
-nome_ente = meta.get("nome_ente", config.NOME_ENTE)
-cidade = nome_ente.split(" - ")[0]
 QUADRIMESTRES = {1: "jan–abr", 2: "mai–ago", 3: "set–dez"}
 
 ind = carregar_indicadores(str(PASTA), assinatura(PASTA / "fIndicadores.csv"))
 if ind.empty or not (ind["relatorio"] == "RREO").any():
-    st.title(f"{cidade} em números")
+    st.title("Visão geral")
     sem_dados()
 
 
@@ -54,7 +52,7 @@ def pp(v: float | None, casas: int = 2) -> str:
 
 # ---------------------------------------------------------------- filtro e período
 anos = sorted(rreo.index.get_level_values("ano").unique().tolist(), reverse=True)
-ano = cabecalho(f"{cidade} em números",
+ano = cabecalho("Visão geral",
                 "Como a prefeitura arrecada e gasta, segundo os relatórios oficiais que ela mesma envia ao "
                 "Tesouro Nacional, e o que merece atenção.",
                 seletor=lambda coluna: seletor_ano(coluna, anos, "Exercício"))
