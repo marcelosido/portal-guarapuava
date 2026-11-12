@@ -27,7 +27,7 @@ def pasta(tmp_path_factory):
     destino = tmp_path_factory.mktemp("dados")
     with servidor_simulado.servidor() as (url, _):
         assert coletar.main(["--anos", "2026", "2026", "--pausa", "0", "--hoje", "2026-10-30",
-                             "--url", url, "--pasta", str(destino)]) == 0
+                             "--modulos", "municipio", "--url", url, "--pasta", str(destino)]) == 0
     return destino
 
 

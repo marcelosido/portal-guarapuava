@@ -1,6 +1,6 @@
 [project]
 name = "portal-guarapuava"
-version = "1.1.0"
+version = "1.2.0"
 description = "Portal de indicadores fiscais do município com dados abertos do SICONFI (Tesouro Nacional)"
 requires-python = ">=3.10"
 

@@ -80,3 +80,71 @@ def test_status_minimo_meta_e_divida():
     assert ind.status_divida(-2.21)[0] == "ok"
     assert ind.status_divida(110)[0] == "alerta"
     assert ind.status_divida(121)[0] == "critico"
+
+
+# ------------------------------------------------------------- v1.2: novos relatórios (gabarito de 12/11/2026)
+def test_mes_de_referencia_das_colunas_mr():
+    assert ind.mes_de_referencia("<MR>", 2026, 8) == "2026-08"
+    assert ind.mes_de_referencia("<MR-2>", 2026, 8) == "2026-06"
+    assert ind.mes_de_referencia("<MR-11>", 2026, 8) == "2025-09"
+    assert ind.mes_de_referencia("<MR-7>", 2026, 2) == "2025-07"
+    assert ind.mes_de_referencia("TOTAL (ÚLTIMOS 12 MESES)", 2026, 8) is None
+
+
+def test_rreo03_meses_total_e_previsao_reais():
+    linhas = ind.extrair_rreo03(fx.itens(fx.RREO03_2026_4), 2026, 8)
+    v = {(l["chave"], l["referencia"]): l["valor"] for l in linhas}
+    meses_iptu = {r: x for (c, r), x in v.items() if c == "iptu" and r[:2] == "20"}
+    assert sorted(meses_iptu) == [f"2025-{m:02d}" for m in range(9, 13)] + [f"2026-{m:02d}" for m in range(1, 9)]
+    assert v[("iptu", "2026-06")] == 16094251.79  # <MR-2> do período que termina em agosto
+    assert round(sum(meses_iptu.values()), 2) == v[("iptu", "12m")] == 42851715.19  # os 12 meses somam o total
+    assert v[("iss", "12m")] == 113624267.76 and v[("iss", "previsao")] == 88266340
+    assert v[("fpm", "12m")] == 186995767.52 and v[("fundeb", "12m")] == 155991584.46
+    assert v[("rcl", "12m")] == 929125228.65  # a mesma RCL do Anexo 14
+    soma = sum(v[(c, "12m")] for c in ("fpm", "icms", "ipva", "itr", "lc61", "fundeb", "outras_transferencias"))
+    assert round(soma, 2) == v[("transferencias", "12m")]
+
+
+def test_rreo14_simplificado_de_municipio_pequeno():
+    v = ind.extrair_rreo14(fx.itens(fx.RREO14_SIMPLIFICADO_ABATIA_2025_6))
+    assert (v["educacao_pct"], v["fundeb_pct"], v["saude_pct"]) == (32.39, 71.09, 27.62)
+    assert v["rcl"] == 45929869.11  # e não as RCL ajustadas
+    assert (v["receita_realizada"], v["despesa_liquidada"]) == (49542985.08, 45358837.38)
+
+
+def test_rgf_simplificado_semestral():
+    v = ind.extrair_rgf_pessoal(fx.itens(fx.RGF01_SIMPLIFICADO_ABATIA_2025_S2))
+    assert v == {"pessoal_valor": 21002020.83, "pessoal_pct": 48.06, "pessoal_limite_maximo_pct": 54,
+                 "pessoal_limite_prudencial_pct": 51.3, "pessoal_limite_alerta_pct": 48.6}
+
+
+def test_dca_despesa_por_funcao():
+    v = ind.extrair_dca_funcoes(fx.itens(fx.DCA_IE_ABATIA_2025))
+    assert v == {"despesa_total": 45358837.38, "funcao_10": 11367792.51, "funcao_12": 13414241.05,
+                 "funcao_26": 130882.76}
+
+
+def test_dca_ignora_o_bloco_intraorcamentario():
+    linhas = [("TotalDespesas", "Despesas Exceto Intraorçamentárias", "Despesas Liquidadas", 1000.0),
+              ("TotalDespesas", "12 - Educação", "Despesas Liquidadas", 400.0),
+              ("TotalDespesas", "12.361 - Ensino Fundamental", "Despesas Liquidadas", 300.0),
+              ("TotalDespesas", "FU12 - Demais Subfunções", "Despesas Liquidadas", 100.0),
+              ("TotalDespesas", "Despesas Intraorçamentárias", "Despesas Liquidadas", 50.0),
+              ("TotalDespesas", "12 - Educação", "Despesas Liquidadas", 30.0)]  # montado no formato real
+    assert ind.extrair_dca_funcoes(fx.itens(linhas)) == {"despesa_total": 1000.0, "funcao_12": 400.0}
+
+
+def test_dca_despesa_por_natureza():
+    v = ind.extrair_dca_natureza(fx.itens(fx.DCA_ID_ABATIA_2025))
+    assert v == {"pessoal_encargos": 23404431.17, "investimentos": 4753866.67, "despesa_total_natureza": 45358837.38}
+
+
+def test_extrato_de_municipio_pequeno_e_de_guarapuava():
+    abatia = ind.resumir_extrato(fx.itens_extrato(fx.EXTRATO_ABATIA_2025, 4100103, 7321))
+    assert abatia["populacao"] == 7321
+    assert (abatia["rreo_tipo"], abatia["rreo_ultimo"]) == ("RREO Simplificado", 6)
+    assert (abatia["rgf_tipo"], abatia["rgf_periodicidade"], abatia["rgf_ultimo"], abatia["rgf_final"]) == \
+        ("RGF Simplificado", "S", 2, 2)
+    guara = ind.resumir_extrato(fx.itens_extrato(fx.EXTRATO_GUARAPUAVA_2025, 4109401, 189630))
+    assert (guara["rreo_tipo"], guara["rgf_tipo"], guara["rgf_periodicidade"], guara["rgf_final"]) == ("RREO", "RGF", "Q", 3)
+    assert guara["dca"] is True and guara["rgf_ultimo"] == 3  # o 3º quadrimestre retificado (RE) conta como entregue

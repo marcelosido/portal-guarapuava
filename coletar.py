@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
-"""Coleta os dados do município na API do SICONFI e grava os arquivos do portal.
+"""Coleta os dados abertos do município e grava os arquivos do portal na pasta data/.
 
 Exemplos:
-    python coletar.py                      # incremental, de 2019 até o ano corrente
-    python coletar.py --anos 2024 2026     # só esse intervalo de anos
-    python coletar.py --completo           # descarta o que existe e recoleta tudo
-    python coletar.py --csv                # grava também fDespesa.csv (para Excel/Power BI)
+    python coletar.py                          # incremental: tudo o que mudou desde a última coleta
+    python coletar.py --anos 2024 2026         # só esse intervalo de anos (dados do município)
+    python coletar.py --completo               # descarta o que existe e recoleta tudo
+    python coletar.py --modulos municipio      # só os dados do município (sem PNCP e sem comparativo)
+    python coletar.py --csv                    # grava também fDespesa.csv (para Excel/Power BI)
 
-O que é coletado:
-    MSC orçamentária (mensal)  -> despesa detalhada por natureza, função e poder/órgão
-    RREO Anexos 1 e 14 (bimestral) -> receitas, resultado, RCL, educação, saúde, previdência, metas
-    RGF Anexos 1 e 2 (quadrimestral) -> despesa com pessoal (Prefeitura e Câmara) e dívida
+Módulos (nesta ordem; o tempo total é limitado por --tempo-max):
+    municipio    SICONFI: MSC (despesa detalhada), RREO Anexos 1, 3 e 14, RGF Anexos 1 e 2
+    pncp         PNCP: licitações, dispensas e contratos dos órgãos municipais
+    comparativo  SICONFI: indicadores de todos os municípios da UF no último ano fechado (retomável)
 
 Arquivos gerados na pasta data/:
     fDespesa.parquet                  tabela fato da despesa (acumulado no ano até cada mês)
     dNatureza.csv, dFuncao.csv, dPoderOrgao.csv   dimensões com descrições
     fIndicadores.csv                  indicadores do RREO e do RGF por período
+    fReceitaCorrente.csv              receita mês a mês por imposto e transferência (RREO Anexo 3)
     rreo_totais.csv, conciliacao_rreo.csv         conferência MSC x RREO
-    metadados.json                    data da coleta, períodos e origem dos dados
+    fContratacoes.csv, fContratos.csv compras públicas (PNCP), sem dados pessoais
+    dMunicipios.csv, fComparativo.csv, comparativo_controle.csv   comparação entre municípios
+    metadados.json                    data da coleta, períodos, pendências e origem dos dados
 """
 
 from __future__ import annotations
@@ -34,9 +38,12 @@ from typing import Callable
 import pandas as pd
 
 from despesas import __version__, config
-from despesas.api import ClienteSiconfi, ErroAPI
+from despesas.api import ClientePNCP, ClienteSiconfi, ErroAPI, Prazo, TempoEsgotado
+from despesas.comparativo import coletar_comparativo
 from despesas.formatacao import brl, numero
-from despesas.indicadores import extrair_rgf_divida, extrair_rgf_pessoal, extrair_rreo01_receitas, extrair_rreo14
+from despesas.indicadores import (extrair_rgf_divida, extrair_rgf_pessoal, extrair_rreo01_receitas, extrair_rreo03,
+                                  extrair_rreo14)
+from despesas.pncp import coletar_pncp
 from despesas.transformacao import (
     CHAVES,
     COLUNAS_MEDIDAS,
@@ -55,7 +62,10 @@ log = logging.getLogger("coletar")
 ARQ_FATO = "fDespesa.parquet"
 ARQ_RREO = "rreo_totais.csv"
 ARQ_IND = "fIndicadores.csv"
+ARQ_RCL = "fReceitaCorrente.csv"
 COLS_IND = ["relatorio", "ano", "periodo", "poder", "chave", "valor"]
+COLS_RCL = ["ano", "periodo", "chave", "referencia", "valor"]
+MODULOS = ("municipio", "pncp", "comparativo")
 CSV = {"sep": ";", "decimal": ",", "index": False, "encoding": "utf-8-sig"}
 PERIODOS_RECOLETAR = 2  # bimestres/quadrimestres mais recentes recoletados a cada execução
 
@@ -68,7 +78,17 @@ def argumentos(argv: list[str] | None) -> argparse.Namespace:
     p.add_argument("--nome-ente", default=config.NOME_ENTE, help="nome exibido no portal")
     p.add_argument("--pasta", type=Path, default=config.PASTA_DADOS, help="pasta de saída (padrão: data/)")
     p.add_argument("--url", default=config.BASE_URL, help="URL base da API do SICONFI")
-    p.add_argument("--pausa", type=float, default=config.PAUSA_SEGUNDOS, help="segundos entre requisições")
+    p.add_argument("--pncp-url", default=config.PNCP_URL, help="URL base da API de consultas do PNCP")
+    p.add_argument("--pncp-inicio", type=dt.date.fromisoformat, default=dt.date.fromisoformat(config.PNCP_INICIO),
+                   help="data inicial das compras no PNCP (padrão: %(default)s)")
+    p.add_argument("--cnpj", default=config.CNPJ_MUNICIPIO, help="CNPJ do município (PNCP)")
+    p.add_argument("--uf", default=config.UF, help="UF dos municípios comparados (padrão: %(default)s)")
+    p.add_argument("--modulos", nargs="+", choices=MODULOS, default=list(MODULOS),
+                   help="o que coletar (padrão: todos)")
+    p.add_argument("--tempo-max", type=float, default=config.TEMPO_MAXIMO_MIN,
+                   help="minutos de coleta; o que faltar continua na próxima execução (padrão: %(default)s)")
+    p.add_argument("--pausa", type=float, default=None,
+                   help="segundos entre requisições (padrão: 1 no município, 0,5 no PNCP e no comparativo)")
     p.add_argument("--meses-recoletar", type=int, default=config.MESES_RECOLETAR,
                    help="meses mais recentes recoletados a cada execução (padrão: %(default)s)")
     p.add_argument("--completo", action="store_true", help="ignora os dados existentes e recoleta tudo")
@@ -192,7 +212,9 @@ def coletar_relatorios(cliente, args, hoje, ano_ini, ano_fim, ind_ant, rreo_ant,
             log.error("RREO %dº bim/%d: %s", bim, ano, exc)
             continue
         trocados_rreo.add((ano, bim))
-        adicionar("RREO", ano, bim, "", {**extrair_rreo01_receitas(anexo01), **extrair_rreo14(anexo14)})
+        populacao = next((float(i["populacao"]) for i in anexo14 if i.get("populacao")), None)
+        adicionar("RREO", ano, bim, "", {**extrair_rreo01_receitas(anexo01), **extrair_rreo14(anexo14),
+                                         **({"populacao": populacao} if populacao else {})})
         totais += [{"ano": ano, "bimestre": bim, "medida": k, "valor_rreo": v} for k, v in totais_rreo(anexo01).items()]
         log.info("RREO %dº bim/%d: ok", bim, ano)
 
@@ -230,7 +252,126 @@ def coletar_relatorios(cliente, args, hoje, ano_ini, ano_fim, ind_ant, rreo_ant,
     ind = ind.astype({"ano": int, "periodo": int}).sort_values(["relatorio", "ano", "periodo", "poder", "chave"])
     rreo = substituir(rreo_ant, pd.DataFrame(totais, columns=["ano", "bimestre", "medida", "valor_rreo"]),
                       trocados_rreo, "bimestre")
-    return ind.reset_index(drop=True), rreo, ausentes, falhas
+    return ind.reset_index(drop=True), rreo, ausentes, falhas, trocados_rreo
+
+
+def coletar_receitas_rcl(cliente, args, hoje, ind, rcl_ant, trocados):
+    """RREO Anexo 3 (receita mês a mês por imposto e transferência).
+
+    Basta o 6º bimestre de cada ano fechado (janeiro a dezembro) e o último bimestre do ano corrente
+    (últimos 12 meses). Busca os que faltam e os que o RREO acabou de recoletar (retificações).
+    """
+    rreo = ind[ind["relatorio"] == "RREO"][["ano", "periodo"]].drop_duplicates().astype(int)
+    alvos = {(a, 6) for a, p in rreo.itertuples(index=False) if p == 6}
+    correntes = rreo[rreo["ano"] == hoje.year]
+    if len(correntes):
+        alvos.add((hoje.year, int(correntes["periodo"].max())))
+    existentes = set(zip(rcl_ant["ano"].astype(int), rcl_ant["periodo"].astype(int))) if len(rcl_ant) else set()
+    buscar = sorted(a for a in alvos if a not in existentes or a in trocados)
+    novos, falhas, feitos = [], [], set()
+    for ano, bim in buscar:
+        try:
+            itens = cliente.rreo(args.ente, ano, bim, anexo="RREO-Anexo 03")
+        except ErroAPI as exc:
+            falhas.append(f"RREO Anexo 3 {ano}/{bim}")
+            log.error("RREO Anexo 3 %dº bim/%d: %s", bim, ano, exc)
+            continue
+        linhas = extrair_rreo03(itens, ano, 2 * bim)
+        if linhas:
+            novos += [{"ano": ano, "periodo": bim, **linha} for linha in linhas]
+            feitos.add((ano, bim))
+    if not feitos:
+        return rcl_ant, falhas
+    mantidos = rcl_ant[~pd.Series([(int(a), int(p)) in feitos for a, p in zip(rcl_ant["ano"], rcl_ant["periodo"])],
+                                  index=rcl_ant.index, dtype=bool)] if len(rcl_ant) else rcl_ant
+    partes = [df for df in (mantidos, pd.DataFrame(novos, columns=COLS_RCL)) if len(df)]
+    rcl = pd.concat(partes, ignore_index=True).astype({"ano": int, "periodo": int})
+    return rcl.sort_values(["ano", "periodo", "chave", "referencia"]).reset_index(drop=True), falhas
+
+
+def modulo_municipio(args, hoje, pasta, meta_anterior):
+    """Dados do próprio município no SICONFI. Devolve (metadados, falhas, linhas do resumo) ou None se vazio."""
+    ano_ini, ano_fim = args.anos or (config.ANO_INICIAL, hoje.year)
+    usar_existentes = not args.completo
+    fato_ant = pd.read_parquet(pasta / ARQ_FATO) if usar_existentes and (pasta / ARQ_FATO).exists() else fato_vazio()
+    ind_ant = _ler_csv(pasta / ARQ_IND, COLS_IND) if usar_existentes else pd.DataFrame(columns=COLS_IND)
+    rreo_ant = (_ler_csv(pasta / ARQ_RREO, ["ano", "bimestre", "medida", "valor_rreo"]) if usar_existentes
+                else pd.DataFrame(columns=["ano", "bimestre", "medida", "valor_rreo"]))
+    rcl_ant = _ler_csv(pasta / ARQ_RCL, COLS_RCL) if usar_existentes else pd.DataFrame(columns=COLS_RCL)
+    ausentes_antes = set(meta_anterior.get("relatorios_ausentes", [])) if usar_existentes else set()
+
+    log.info("Ente %s (%s), exercícios %d a %d.", args.ente, args.nome_ente, ano_ini, ano_fim)
+    pausa = config.PAUSA_SEGUNDOS if args.pausa is None else args.pausa
+    cliente = ClienteSiconfi(base_url=args.url, pausa=pausa)
+    fato, coletados, indisponiveis, falhas = coletar_msc(cliente, args, hoje, ano_ini, ano_fim, fato_ant)
+    if fato.empty:
+        log.error("Nenhum dado disponível. Confira o código IBGE (--ente) e o acesso à internet.")
+        return None
+    ind, rreo, ausentes, falhas_rel, trocados = coletar_relatorios(cliente, args, hoje, ano_ini, ano_fim, ind_ant,
+                                                                   rreo_ant, ausentes_antes)
+    falhas += falhas_rel
+    rcl, falhas_rcl = coletar_receitas_rcl(cliente, args, hoje, ind, rcl_ant, trocados)
+    falhas += falhas_rcl
+    conciliacao = conciliar_com_rreo(fato, rreo, config.TOLERANCIA_CONCILIACAO)
+
+    # ---- gravação (arquivos idênticos quando nada muda: o Git só registra o que mudou)
+    _gravar(pasta / ARQ_FATO, lambda p: fato.to_parquet(p, index=False))
+    if args.csv:
+        _gravar(pasta / "fDespesa.csv", lambda p: fato.to_csv(p, **CSV))
+    _gravar(pasta / "dNatureza.csv", lambda p: dimensao_natureza(fato["natureza_despesa"].unique()).to_csv(p, **CSV))
+    _gravar(pasta / "dFuncao.csv", lambda p: dimensao_funcao(fato["funcao"].unique()).to_csv(p, **CSV))
+    _gravar(pasta / "dPoderOrgao.csv", lambda p: dimensao_poder_orgao(fato["poder_orgao"].unique()).to_csv(p, **CSV))
+    _gravar(pasta / ARQ_IND, lambda p: ind.to_csv(p, **CSV))
+    if len(rcl):
+        _gravar(pasta / ARQ_RCL, lambda p: rcl.to_csv(p, **CSV))
+    _gravar(pasta / ARQ_RREO, lambda p: rreo.sort_values(["ano", "bimestre", "medida"]).to_csv(p, **CSV))
+    _gravar(pasta / "conciliacao_rreo.csv", lambda p: conciliacao.to_csv(p, **CSV))
+
+    meses = sorted(set(zip(fato["ano"], fato["mes"])))
+    ultimo = meses[-1]
+    ultimo_de = lambda rel: (ind.loc[ind["relatorio"] == rel, ["ano", "periodo"]].drop_duplicates()  # noqa: E731
+                             .sort_values(["ano", "periodo"]).tail(1).astype(int).values.tolist())
+    rreo_ult, rgf_ult = ultimo_de("RREO"), ultimo_de("RGF")
+    meta = {
+        "id_ente": args.ente,
+        "nome_ente": args.nome_ente,
+        "fonte": "Tesouro Nacional / SICONFI – MSC orçamentária, RREO (Anexos 1, 3 e 14) e RGF (Anexos 1 e 2)",
+        "url_api": args.url,
+        "coletado_em": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+        "versao_coletor": __version__,
+        "primeiro_mes": f"{meses[0][0]}-{meses[0][1]:02d}",
+        "ultimo_mes": f"{ultimo[0]}-{ultimo[1]:02d}",
+        "meses": len(meses),
+        "linhas": int(len(fato)),
+        "ultimo_rreo": f"{rreo_ult[0][0]}-{rreo_ult[0][1]}" if rreo_ult else None,
+        "ultimo_rgf": f"{rgf_ult[0][0]}-{rgf_ult[0][1]}" if rgf_ult else None,
+        "requisicoes": cliente.requisicoes,
+        "meses_coletados_nesta_execucao": len(coletados),
+        "meses_ainda_nao_publicados": indisponiveis,
+        "relatorios_ausentes": _ausentes(ausentes_antes, ausentes, ind),
+        "falhas": falhas,
+    }
+
+    tot = fato[(fato["ano"] == ultimo[0]) & (fato["mes"] == ultimo[1])][COLUNAS_MEDIDAS].sum()
+    status = conciliacao["status"].value_counts().to_dict()
+    divergentes = conciliacao[conciliacao["status"] == "Divergente"]
+    resumo = [
+        f"MSC: {meses[0][1]:02d}/{meses[0][0]} a {ultimo[1]:02d}/{ultimo[0]} ({len(meses)} meses, {numero(len(fato), 0)} linhas)",
+        f"{ultimo[1]:02d}/{ultimo[0]}: dotação atualizada {brl(tot['dotacao_atualizada'])} | empenhado {brl(tot['empenhado'])}"
+        f" | liquidado {brl(tot['liquidado'])} | pago {brl(tot['pago'])}",
+    ]
+    if rreo_ult:
+        resumo.append(f"RREO até o {rreo_ult[0][1]}º bimestre/{rreo_ult[0][0]}")
+    if rgf_ult:
+        resumo.append(f"RGF até o {rgf_ult[0][1]}º quadrimestre/{rgf_ult[0][0]}")
+    resumo.append(f"Conferência MSC x RREO: {status.get('Conciliado', 0)} conciliadas, {status.get('Divergente', 0)} "
+                  f"divergentes, {status.get('RREO indisponível', 0)} sem RREO publicado")
+    if len(divergentes):
+        maior = divergentes.loc[divergentes["diferenca"].abs().idxmax()]
+        resumo.append(f"Maior divergência: {NOMES_MEDIDAS[maior['medida']]} no {int(maior['bimestre'])}º bim/"
+                      f"{int(maior['ano'])}: {brl(maior['diferenca'])} (MSC − RREO)")
+    resumo.append(f"Requisições ao SICONFI (município): {cliente.requisicoes}")
+    return meta, falhas, resumo
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -249,85 +390,65 @@ def main(argv: list[str] | None = None) -> int:
         log.error("A pasta %s tem dados do ente %s. Use --completo ou outra --pasta.", pasta, meta_anterior["id_ente"])
         return 2
 
-    usar_existentes = not args.completo
-    fato_ant = pd.read_parquet(pasta / ARQ_FATO) if usar_existentes and (pasta / ARQ_FATO).exists() else fato_vazio()
-    ind_ant = _ler_csv(pasta / ARQ_IND, COLS_IND) if usar_existentes else pd.DataFrame(columns=COLS_IND)
-    rreo_ant = (_ler_csv(pasta / ARQ_RREO, ["ano", "bimestre", "medida", "valor_rreo"]) if usar_existentes
-                else pd.DataFrame(columns=["ano", "bimestre", "medida", "valor_rreo"]))
-    ausentes_antes = set(meta_anterior.get("relatorios_ausentes", [])) if usar_existentes else set()
+    prazo = Prazo(args.tempo_max)
+    metadados = dict(meta_anterior)
+    codigo, resumo = 0, []
 
-    log.info("Ente %s (%s), exercícios %d a %d.", args.ente, args.nome_ente, ano_ini, ano_fim)
-    cliente = ClienteSiconfi(base_url=args.url, pausa=args.pausa)
-    fato, coletados, indisponiveis, falhas = coletar_msc(cliente, args, hoje, ano_ini, ano_fim, fato_ant)
-    if fato.empty:
-        log.error("Nenhum dado disponível. Confira o código IBGE (--ente) e o acesso à internet.")
-        return 1
-    ind, rreo, ausentes, falhas_rel = coletar_relatorios(cliente, args, hoje, ano_ini, ano_fim, ind_ant, rreo_ant,
-                                                         ausentes_antes)
-    falhas += falhas_rel
-    conciliacao = conciliar_com_rreo(fato, rreo, config.TOLERANCIA_CONCILIACAO)
+    if "municipio" in args.modulos:
+        resultado = modulo_municipio(args, hoje, pasta, meta_anterior)
+        if resultado is None:
+            return 1
+        meta, falhas, linhas = resultado
+        metadados.update(meta)
+        resumo += linhas
+        if falhas:
+            resumo.append(f"ATENÇÃO: falha ao consultar {', '.join(falhas)} – rode novamente para completar.")
+            codigo = 1
 
-    # ---- gravação (arquivos idênticos quando nada muda: o Git só registra o que mudou)
-    _gravar(pasta / ARQ_FATO, lambda p: fato.to_parquet(p, index=False))
-    if args.csv:
-        _gravar(pasta / "fDespesa.csv", lambda p: fato.to_csv(p, **CSV))
-    _gravar(pasta / "dNatureza.csv", lambda p: dimensao_natureza(fato["natureza_despesa"].unique()).to_csv(p, **CSV))
-    _gravar(pasta / "dFuncao.csv", lambda p: dimensao_funcao(fato["funcao"].unique()).to_csv(p, **CSV))
-    _gravar(pasta / "dPoderOrgao.csv", lambda p: dimensao_poder_orgao(fato["poder_orgao"].unique()).to_csv(p, **CSV))
-    _gravar(pasta / ARQ_IND, lambda p: ind.to_csv(p, **CSV))
-    _gravar(pasta / ARQ_RREO, lambda p: rreo.sort_values(["ano", "bimestre", "medida"]).to_csv(p, **CSV))
-    _gravar(pasta / "conciliacao_rreo.csv", lambda p: conciliacao.to_csv(p, **CSV))
+    pausa_extra = lambda padrao: padrao if args.pausa is None else args.pausa  # noqa: E731
+    if "pncp" in args.modulos:
+        cliente = ClientePNCP(base_url=args.pncp_url, pausa=pausa_extra(config.PAUSA_PNCP), prazo=prazo)
+        controle = meta_anterior.get("pncp", {}) if not args.completo else {}
+        try:
+            contratacoes, contratos, controle_novo = coletar_pncp(
+                cliente, pasta, hoje, args.ente, args.cnpj, args.pncp_inicio, controle, args.completo)
+        except (ErroAPI, TempoEsgotado) as exc:  # falha antes de qualquer janela: mantém o que havia
+            log.error("PNCP: %s", exc)
+            controle_novo = {**controle, "status": "falhou", "falhas": [str(exc)[:200]]}
+        else:
+            _gravar(pasta / "fContratacoes.csv", lambda p: contratacoes.to_csv(p, **CSV))
+            _gravar(pasta / "fContratos.csv", lambda p: contratos.to_csv(p, **CSV))
+        controle_novo["url_api"] = args.pncp_url
+        controle_novo["requisicoes"] = cliente.requisicoes
+        metadados["pncp"] = controle_novo
+        resumo.append(f"PNCP: {controle_novo.get('contratacoes', 0)} contratações e {controle_novo.get('contratos', 0)} "
+                      f"contratos ({controle_novo['status']}, {cliente.requisicoes} requisições)")
+        if controle_novo["status"] == "falhou":
+            codigo = 1
 
-    meses = sorted(set(zip(fato["ano"], fato["mes"])))
-    ultimo = meses[-1]
-    ultimo_de = lambda rel: (ind.loc[ind["relatorio"] == rel, ["ano", "periodo"]].drop_duplicates()
-                             .sort_values(["ano", "periodo"]).tail(1).astype(int).values.tolist())
-    rreo_ult, rgf_ult = ultimo_de("RREO"), ultimo_de("RGF")
-    metadados = {
-        "id_ente": args.ente,
-        "nome_ente": args.nome_ente,
-        "fonte": "Tesouro Nacional / SICONFI – MSC orçamentária, RREO (Anexos 1 e 14) e RGF (Anexos 1 e 2)",
-        "url_api": args.url,
-        "coletado_em": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
-        "versao_coletor": __version__,
-        "primeiro_mes": f"{meses[0][0]}-{meses[0][1]:02d}",
-        "ultimo_mes": f"{ultimo[0]}-{ultimo[1]:02d}",
-        "meses": len(meses),
-        "linhas": int(len(fato)),
-        "ultimo_rreo": f"{rreo_ult[0][0]}-{rreo_ult[0][1]}" if rreo_ult else None,
-        "ultimo_rgf": f"{rgf_ult[0][0]}-{rgf_ult[0][1]}" if rgf_ult else None,
-        "requisicoes": cliente.requisicoes,
-        "meses_coletados_nesta_execucao": len(coletados),
-        "meses_ainda_nao_publicados": indisponiveis,
-        "relatorios_ausentes": _ausentes(ausentes_antes, ausentes, ind),
-        "falhas": falhas,
-    }
+    if "comparativo" in args.modulos:
+        cliente = ClienteSiconfi(base_url=args.url, pausa=pausa_extra(config.PAUSA_COMPARATIVO), prazo=prazo)
+        comp = coletar_comparativo(cliente, pasta, hoje, args.uf, args.ente, args.completo)
+        comp["requisicoes"] = cliente.requisicoes
+        comp["url_api"] = args.url
+        metadados["comparativo"] = comp
+        resumo.append(f"Comparativo {comp.get('uf', args.uf)} {comp.get('ano')}: {comp.get('com_dados', 0)} de "
+                      f"{comp.get('municipios', 0)} municípios com dados ({comp['status']}, {cliente.requisicoes} requisições)")
+        if comp["status"] == "parcial":
+            resumo.append("  O restante entra nas próximas execuções do robô.")
+        if comp["status"] == "falhou":
+            codigo = 1
+
+    metadados["versao_coletor"] = __version__
+    metadados["modulos_nesta_execucao"] = list(args.modulos)
     _gravar(pasta / "metadados.json",
             lambda p: p.write_text(json.dumps(metadados, ensure_ascii=False, indent=2), encoding="utf-8"))
 
-    # ---- resumo
-    tot = fato[(fato["ano"] == ultimo[0]) & (fato["mes"] == ultimo[1])][COLUNAS_MEDIDAS].sum()
-    status = conciliacao["status"].value_counts().to_dict()
-    divergentes = conciliacao[conciliacao["status"] == "Divergente"]
     print("\nResumo da coleta")
-    print(f"  MSC: {meses[0][1]:02d}/{meses[0][0]} a {ultimo[1]:02d}/{ultimo[0]} ({len(meses)} meses, {numero(len(fato), 0)} linhas)")
-    print(f"  {ultimo[1]:02d}/{ultimo[0]}: dotação atualizada {brl(tot['dotacao_atualizada'])} | empenhado {brl(tot['empenhado'])}"
-          f" | liquidado {brl(tot['liquidado'])} | pago {brl(tot['pago'])}")
-    if rreo_ult:
-        print(f"  RREO até o {rreo_ult[0][1]}º bimestre/{rreo_ult[0][0]}")
-    if rgf_ult:
-        print(f"  RGF até o {rgf_ult[0][1]}º quadrimestre/{rgf_ult[0][0]}")
-    print(f"  Conferência MSC x RREO: {status.get('Conciliado', 0)} conciliadas, {status.get('Divergente', 0)} divergentes,"
-          f" {status.get('RREO indisponível', 0)} sem RREO publicado")
-    if len(divergentes):
-        maior = divergentes.loc[divergentes["diferenca"].abs().idxmax()]
-        print(f"  Maior divergência: {NOMES_MEDIDAS[maior['medida']]} no {int(maior['bimestre'])}º bim/{int(maior['ano'])}:"
-              f" {brl(maior['diferenca'])} (MSC − RREO)")
-    print(f"  Requisições à API: {cliente.requisicoes} | arquivos em {pasta.resolve()}")
-    if falhas:
-        print(f"  ATENÇÃO: falha ao consultar {', '.join(falhas)} – rode novamente para completar.")
-        return 1
-    return 0
+    for linha in resumo:
+        print(f"  {linha}")
+    print(f"  Arquivos em {pasta.resolve()}")
+    return codigo
 
 
 if __name__ == "__main__":

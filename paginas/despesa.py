@@ -1,4 +1,4 @@
-"""Página "Despesa detalhada": execução da despesa por natureza, função e poder/órgão (MSC)."""
+"""Página "Despesas": execução da despesa por natureza, função e poder/órgão (MSC)."""
 
 from __future__ import annotations
 
@@ -9,31 +9,31 @@ import streamlit as st
 from despesas import config
 from despesas.dicionarios import NOMES_MES, SIGLAS_MES
 from despesas.formatacao import brl, brl_compacto, numero, pct, razao
-from despesas.painel import (AZUL, AZUL_TRILHA, CINZA, assinatura, aviso_demonstracao, carregar_despesa,
+from despesas.painel import (AZUL, AZUL_TRILHA, CINZA, assinatura, aviso_demonstracao, cabecalho, carregar_despesa,
                              coletado_em, estilo_grafico, ler_metadados, md, mes_extenso, mostrar,
-                             pacote_dados_abertos, pasta_dados, sem_acento, sem_dados, tabela)
-from despesas.transformacao import COLUNAS_MEDIDAS, NOMES_MEDIDAS
+                             pacote_dados_abertos, pasta_dados, sem_acento, sem_dados, seletor_ano, tabela)
+from despesas.transformacao import COLUNAS_MEDIDAS
 
 PASTA = pasta_dados()
 arq_fato = PASTA / "fDespesa.parquet"
 meta = ler_metadados(PASTA)
 nome_ente = meta.get("nome_ente", config.NOME_ENTE)
 
-st.title("Despesa detalhada")
 if not arq_fato.exists():
+    st.title("Despesas")
     sem_dados()
 fato, conciliacao = carregar_despesa(str(PASTA), assinatura(arq_fato))
 coletado = coletado_em(meta)
-st.caption(
-    f"{nome_ente} · dotação, empenho, liquidação e pagamento acumulados no ano · Fonte: Tesouro Nacional/SICONFI "
-    f"(Matriz de Saldos Contábeis) · dados até {mes_extenso(meta.get('ultimo_mes', ''))} · coletados em {coletado}"
-)
+cabecalho("Despesas", "Quanto a prefeitura tem autorizado para gastar, quanto já empenhou, liquidou e pagou – por "
+          "função de governo, tipo de despesa e órgão.")
+st.caption(md(f"Fonte: Tesouro Nacional (SICONFI) – Matriz de Saldos Contábeis · valores acumulados no ano · dados até "
+              f"{mes_extenso(meta.get('ultimo_mes', ''))} · atualizado em {coletado}"))
 aviso_demonstracao(meta)
 
 # --------------------------------------------------------------------------- filtros
 anos = sorted(fato["ano"].unique().tolist(), reverse=True)
 c1, c2, c3, c4 = st.columns([1, 1.2, 2.3, 2.5])
-ano = c1.selectbox("Exercício", anos)
+ano = seletor_ano(c1, anos, "Exercício")
 meses = sorted(fato.loc[fato["ano"] == ano, "mes"].unique().tolist())
 mes = c2.selectbox("Acumulado até", meses, index=len(meses) - 1, format_func=lambda x: NOMES_MES[x])
 poderes = c3.multiselect("Poder / órgão", sorted(fato["poder_orgao_desc"].unique()), placeholder="Todos")
@@ -91,9 +91,7 @@ k[4].metric(
     border=True, help="Liquidado ÷ dotação atualizada – mesmo percentual da página do portal da transparência",
 )
 
-aba_geral, aba_demo, aba_conf, aba_sobre = st.tabs(
-    ["Visão geral", "Demonstrativo", "Conferência dos dados", "Sobre os dados"]
-)
+aba_geral, aba_demo = st.tabs(["Visão geral", "Demonstrativo"])
 
 # ----------------------------------------------------------------------- visão geral
 with aba_geral:
@@ -251,81 +249,10 @@ with aba_demo:
     b2.download_button("Baixar a base completa (ZIP)", pacote_dados_abertos(str(PASTA), assinatura(arq_fato)),
                        file_name="dados_abertos_despesa.zip", mime="application/zip", icon=":material/folder_zip:")
 
-# ------------------------------------------------------------------------ conferência
-with aba_conf:
-    st.subheader("Conferência com o RREO")
-    st.markdown(
-        "No fim de cada bimestre, os totais calculados a partir da MSC são comparados com a linha "
-        "**Total das despesas** do RREO Anexo 1 que o próprio município publica no SICONFI. "
-        f"Diferenças de até {brl(config.TOLERANCIA_CONCILIACAO)} contam como conciliadas."
-    )
-    if conciliacao.empty:
-        st.info("Ainda não há bimestre fechado para conferir.")
-    else:
-        conc = conciliacao.copy()
-        contagem = conc["status"].value_counts()
-        s1, s2, s3 = st.columns(3)
-        s1.metric("Conciliadas", int(contagem.get("Conciliado", 0)), border=True)
-        s2.metric("Divergentes", int(contagem.get("Divergente", 0)), border=True)
-        s3.metric("Sem RREO publicado", int(contagem.get("RREO indisponível", 0)), border=True)
-        so_div = st.toggle("Mostrar só divergências")
-        if so_div:
-            conc = conc[conc["status"] == "Divergente"]
-        icones = {"Conciliado": "✔ Conciliado", "Divergente": "✖ Divergente", "RREO indisponível": "… sem RREO"}
-        conc = conc.sort_values(["ano", "bimestre"], ascending=False).assign(
-            medida=lambda d: d["medida"].map(NOMES_MEDIDAS), status=lambda d: d["status"].map(icones),
-            bimestre=lambda d: d["bimestre"].astype(int).astype(str) + "º",
-        )[["ano", "bimestre", "medida", "valor_msc", "valor_rreo", "diferenca", "status"]]
-        conc.columns = ["Exercício", "Bimestre", "Medida", "MSC", "RREO", "Diferença (MSC − RREO)", "Situação"]
-        tabela(conc, monetarias=["MSC", "RREO", "Diferença (MSC − RREO)"], altura=420)
-        st.caption(
-            "Divergência pequena e constante na dotação costuma vir do próprio envio do município: em ago/2026, "
-            "a dotação da MSC de Guarapuava ficou R$ 1.469,54 acima da informada no RREO, enquanto empenhado, "
-            "liquidado e pago bateram ao centavo."
-        )
-    st.subheader("Coleta")
-    st.markdown(
-        f"- Coletado em **{coletado}**, {meta.get('requisicoes', '–')} requisições à API\n"
-        f"- Período disponível: **{meta.get('primeiro_mes', '–')}** a **{meta.get('ultimo_mes', '–')}** "
-        f"({meta.get('meses', '–')} meses, {numero(meta.get('linhas', 0), 0)} linhas)\n"
-        f"- Meses ainda não publicados pelo município: {', '.join(meta.get('meses_ainda_nao_publicados', [])) or 'nenhum'}"
-    )
-
-# ------------------------------------------------------------------------------ sobre
-with aba_sobre:
-    st.subheader("De onde vêm os números")
-    st.markdown(
-        f"""
-Os dados vêm da **API de dados abertos do SICONFI** (Tesouro Nacional), que recebe todo mês a
-**Matriz de Saldos Contábeis (MSC)** enviada pelo município. É a mesma execução orçamentária exibida no
-[Demonstrativo das Despesas]({config.URL_PORTAL_TRANSPARENCIA}) do portal da transparência, com a vantagem de
-ter acesso automatizado e padronizado.
-
-| Medida | Conta da MSC (PCASP) |
-|---|---|
-| Dotação inicial | 5.2.2.1.1 |
-| Dotação atualizada | 6.2.2.1 (todas as subcontas) |
-| Empenhado | 6.2.2.1.3 |
-| Liquidado | 6.2.2.1.3.03 (liquidado a pagar) + 6.2.2.1.3.04 (pago) |
-| Pago | 6.2.2.1.3.04 |
-
-**Leitura dos valores.** Os saldos são acumulados no ano até o mês escolhido, como na página da prefeitura
-("Liquidado até o mês"). A opção *Mês a mês* mostra a diferença entre meses consecutivos.
-
-**Atualização.** O município envia a MSC até o fim do mês seguinte, então os dados aqui têm cerca de um
-mês de defasagem em relação ao portal da transparência, que é atualizado diariamente. A coleta recolhe os
-três últimos meses a cada execução para captar retificações.
-
-**Poder / órgão.** A MSC separa Executivo, RPPS e Legislativo. Fundos (FIA, FUNREBOM) e fundações
-(Fundação Proteger) entram no Executivo; o instituto de previdência aparece como RPPS.
-
-**Limitações.** Dados desde 2019 (primeiro ano com MSC na API). Descrições de códigos seguem a Portaria
-Interministerial STN/SOF nº 163/2001; códigos fora da tabela aparecem como "Elemento NN".
-"""
-    )
-
 st.divider()
 st.caption(
     f"Dados abertos: Tesouro Nacional/SICONFI · [Portal da Transparência de {nome_ente}]"
-    f"({config.URL_PORTAL_TRANSPARENCIA}) · base completa disponível na aba Demonstrativo"
+    f"({config.URL_PORTAL_TRANSPARENCIA}) · base completa na aba Demonstrativo"
 )
+st.page_link("paginas/sobre.py", label="Como os dados são conferidos (MSC × RREO) e a origem de cada número",
+             icon=":material/fact_check:")

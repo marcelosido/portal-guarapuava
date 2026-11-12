@@ -1,8 +1,9 @@
-"""Indicadores fiscais a partir do RREO (Anexos 1 e 14) e do RGF (Anexos 1 e 2).
+"""Indicadores fiscais a partir do RREO (Anexos 1, 3 e 14), do RGF (Anexos 1 e 2) e da DCA.
 
 Os códigos `cod_conta` e os nomes de coluna usados aqui foram conferidos na API em
-30/10/2026 (Guarapuava: RREO 4º bim/2026 e 6º bim/2021; RGF 2º quadr/2026 e 3º quadr/2021).
-Quando um código não aparece, o indicador fica em branco – nada é estimado.
+30/10/2026 (Guarapuava: RREO 4º bim/2026 e 6º bim/2021; RGF 2º quadr/2026 e 3º quadr/2021) e em
+12/11/2026 (Guarapuava: RREO Anexo 3 4º bim/2026 e 6º bim/2019, DCA 2025; Abatiá: RREO e RGF
+simplificados e DCA 2025). Quando um código não aparece, o indicador fica em branco – nada é estimado.
 """
 
 from __future__ import annotations
@@ -109,6 +110,159 @@ def extrair_rreo01_receitas(itens: Iterable[dict]) -> dict[str, float]:
         if realizada is not None:
             valores[f"receita_{chave}_realizada"] = realizada
     return valores
+
+
+# ---------------------------------------------------------------- RREO Anexo 3
+# Demonstrativo da Receita Corrente Líquida: arrecadação mês a mês dos últimos 12 meses,
+# por imposto e transferência. chave: (cod_conta, nome exibido no portal, grupo)
+RECEITAS_RCL = {
+    "iptu": ("IPTULiquidoExcetoTransferenciasEFUNDEB", "IPTU", "Impostos municipais"),
+    "iss": ("ISSLiquidoExcetoTransferenciasEFUNDEB", "ISS", "Impostos municipais"),
+    "itbi": ("ITBILiquidoExcetoTransferenciasEFUNDEB", "ITBI", "Impostos municipais"),
+    "irrf": ("IRRFLiquidoExcetoTransferenciasEFUNDEB", "Imposto de renda retido (IRRF)", "Impostos municipais"),
+    "outros_tributos": ("OutrasReceitasTributarias", "Taxas e outros tributos", "Impostos municipais"),
+    "fpm": ("RREO3CotaParteDoFPM", "FPM – Fundo de Participação dos Municípios", "Transferências"),
+    "icms": ("RREO3CotaParteDoICMS", "Cota-parte do ICMS", "Transferências"),
+    "ipva": ("RREO3CotaParteDoIPVA", "Cota-parte do IPVA", "Transferências"),
+    "itr": ("RREO3CotaParteDoITR", "Cota-parte do ITR", "Transferências"),
+    "lc61": ("RREO3TransferenciasDaLC611989", "IPI-exportação (LC 61/1989)", "Transferências"),
+    "fundeb": ("RREO3TransferenciasDoFUNDEB", "FUNDEB", "Transferências"),
+    "outras_transferencias": ("RREO3OutrasTransferenciasCorrentes", "Outras transferências correntes", "Transferências"),
+    "contribuicoes": ("RREO3ReceitaDeContribuicoes", "Contribuições", "Outras receitas"),
+    "rendimentos": ("RendimentosDeAplicacaoFinanceira", "Rendimentos de aplicações financeiras", "Outras receitas"),
+    "outras_patrimoniais": ("OutrasReceitasPatrimoniais", "Outras receitas patrimoniais", "Outras receitas"),
+    "agropecuaria": ("RREO3ReceitaAgropecuaria", "Receita agropecuária", "Outras receitas"),
+    "servicos": ("RREO3ReceitaDeServicos", "Receita de serviços", "Outras receitas"),
+    "outras_correntes": ("RREO3OutrasReceitasCorrentes", "Outras receitas correntes", "Outras receitas"),
+    # totais e deduções (não entram na soma das linhas acima)
+    "tributaria": ("ReceitaTributariaLiquidaExcetoTransferenciasEFUNDEB", "Impostos, taxas e contribuições de melhoria", "Total"),
+    "transferencias": ("RREO3TransferenciasCorrentes", "Transferências correntes", "Total"),
+    "correntes": ("ReceitasCorrentesLiquidasExcetoTransferenciasEFUNDEB", "Receitas correntes", "Total"),
+    "deducao_fundeb": ("DeducaoDeReceitaParaFormacaoDoFUNDEB", "Dedução para formar o FUNDEB", "Total"),
+    "deducoes": ("DeducoesDaReceitaCorrenteLiquida", "Deduções", "Total"),
+    "rcl": ("RREO3ReceitaCorrenteLiquida", "Receita corrente líquida", "Total"),
+}
+_MR = re.compile(r"^<MR(?:-(\d{1,2}))?>$")
+
+
+def mes_de_referencia(coluna: str, ano: int, ultimo_mes: int) -> str | None:
+    """'<MR-2>' no período que termina em ago/2026 -> '2026-06'. Devolve None se não for coluna de mês."""
+    m = _MR.match(str(coluna).strip())
+    if not m:
+        return None
+    deslocamento = int(m.group(1) or 0)
+    indice = ano * 12 + (ultimo_mes - 1) - deslocamento
+    return f"{indice // 12}-{indice % 12 + 1:02d}"
+
+
+def extrair_rreo03(itens: Iterable[dict], ano: int, ultimo_mes: int) -> list[dict]:
+    """Linhas (chave, referencia, valor): referencia = 'AAAA-MM' (mês), '12m' (total) ou 'previsao' (ano)."""
+    itens = _padrao(itens)
+    por_codigo = {codigo: chave for chave, (codigo, _, _) in RECEITAS_RCL.items()}
+    linhas, vistos = [], set()
+    for item in itens:
+        chave = por_codigo.get(str(item.get("cod_conta", "")))
+        if chave is None:
+            continue
+        coluna = str(item.get("coluna", ""))
+        col = normalizar(coluna)
+        if col.startswith("total"):
+            referencia = "12m"
+        elif col.startswith("previsao atualizada"):
+            referencia = "previsao"
+        else:
+            referencia = mes_de_referencia(coluna, ano, ultimo_mes)
+        if referencia is None or (chave, referencia) in vistos:
+            continue
+        try:
+            valor = round(float(item["valor"]), 2)
+        except (TypeError, ValueError, KeyError):
+            continue
+        vistos.add((chave, referencia))
+        linhas.append({"chave": chave, "referencia": referencia, "valor": valor})
+    return linhas
+
+
+# ----------------------------------------------------------------- DCA (balanço anual)
+def extrair_dca_funcoes(itens: Iterable[dict]) -> dict[str, float]:
+    """DCA Anexo I-E: despesa liquidada no ano por função ('12 - Educação' -> funcao_12), sem intraorçamentárias.
+
+    O anexo traz primeiro o bloco "Despesas Exceto Intraorçamentárias" e depois o bloco
+    "Despesas Intraorçamentárias", com as mesmas funções; só o primeiro bloco entra.
+    """
+    liquidadas = [i for i in itens if normalizar(i.get("coluna", "")) == "despesas liquidadas"]
+    valores: dict[str, float] = {}
+    for item in liquidadas:
+        conta = str(item.get("conta", "")).strip()
+        nconta = normalizar(conta)
+        try:
+            valor = round(float(item["valor"]), 2)
+        except (TypeError, ValueError, KeyError):
+            continue
+        if nconta.startswith("despesas intraorcamentarias"):
+            if any(k.startswith("funcao_") for k in valores):
+                break  # começou o bloco intraorçamentário
+            continue
+        if nconta.startswith("despesas exceto intra"):
+            valores.setdefault("despesa_total", valor)
+            continue
+        m = re.match(r"^(\d{2}) - ", conta)
+        if m:
+            valores.setdefault(f"funcao_{m.group(1)}", valor)
+    return valores
+
+
+def extrair_dca_natureza(itens: Iterable[dict]) -> dict[str, float]:
+    """DCA Anexo I-D: despesa liquidada no ano com pessoal (3.1), investimentos (4.4) e total."""
+    regras = {"pessoal_encargos": "DO3.1.00.00.00.00", "investimentos": "DO4.4.00.00.00.00",
+              "despesa_total_natureza": "TotalDespesas"}
+    valores: dict[str, float] = {}
+    for item in itens:
+        if normalizar(item.get("coluna", "")) != "despesas liquidadas":
+            continue
+        for chave, codigo in regras.items():
+            if item.get("cod_conta") == codigo and chave not in valores:
+                try:
+                    valores[chave] = round(float(item["valor"]), 2)
+                except (TypeError, ValueError, KeyError):
+                    pass
+    return valores
+
+
+def resumir_extrato(itens: Iterable[dict]) -> dict:
+    """Extrato de entregas do ano: que relatório a prefeitura entregou, em que periodicidade.
+
+    Municípios com menos de 50 mil habitantes podem entregar o RREO e o RGF simplificados
+    (o RGF passa a ser semestral). O extrato diz qual consulta fazer em cada caso.
+    """
+    info = {"populacao": None, "rreo_tipo": None, "rreo_ultimo": 0, "rgf_tipo": None,
+            "rgf_periodicidade": None, "rgf_ultimo": 0, "dca": False}
+    for item in itens:
+        if info["populacao"] is None and item.get("populacao"):
+            info["populacao"] = int(item["populacao"])
+        entregavel = normalizar(item.get("entregavel", ""))
+        instituicao = normalizar(item.get("instituicao", ""))
+        try:
+            periodo = int(item.get("periodo") or 0)
+        except (TypeError, ValueError):
+            periodo = 0
+        if "camara" in instituicao:
+            continue  # o comparativo usa os relatórios do Executivo (prefeitura)
+        if entregavel.startswith("relatorio resumido"):
+            if periodo >= info["rreo_ultimo"]:
+                info["rreo_ultimo"] = periodo
+                info["rreo_tipo"] = "RREO Simplificado" if "simplificado" in entregavel else "RREO"
+        elif entregavel.startswith("relatorio de gestao fiscal"):
+            periodicidade = str(item.get("periodicidade") or "").strip().upper() or "Q"
+            if periodo >= info["rgf_ultimo"]:
+                info["rgf_ultimo"] = periodo
+                info["rgf_tipo"] = "RGF Simplificado" if "simplificado" in entregavel else "RGF"
+                info["rgf_periodicidade"] = periodicidade
+        elif "dca" in entregavel or entregavel.startswith("balanco anual"):
+            info["dca"] = True
+    if info["rgf_periodicidade"]:
+        info["rgf_final"] = 2 if info["rgf_periodicidade"] == "S" else 3
+    return info
 
 
 # ----------------------------------------------------------------- RGF Anexo 1

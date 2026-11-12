@@ -1,6 +1,6 @@
-"""Página inicial: orçamento previsto × realizado, limites da LRF e mínimos da Constituição.
+"""Página inicial: pontos de atenção, orçamento previsto × realizado, limites da LRF e mínimos da Constituição.
 
-Fonte: RREO (Anexos 1 e 14) e RGF (Anexos 1 e 2) publicados pelo município no SICONFI.
+Fonte: RREO (Anexos 1 e 14) e RGF (Anexos 1 e 2) publicados pelo município no SICONFI; compras no PNCP.
 """
 
 from __future__ import annotations
@@ -12,12 +12,13 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from despesas import config
+from despesas.alertas import analisar_compras, pontos_compras, pontos_fiscais
 from despesas.dicionarios import NOMES_MES
-from despesas.formatacao import brl, brl_compacto, numero, pct, razao
-from despesas.indicadores import ORIGENS_RECEITA, status_divida, status_limite, status_meta, status_minimo
-from despesas.painel import (AZUL, AZUL_TRILHA, CINZA, assinatura, aviso_demonstracao, carregar_despesa,
-                             carregar_indicadores, coletado_em, estilo_grafico, ler_metadados, md, mostrar,
-                             pasta_dados, selo, sem_dados, tabela)
+from despesas.formatacao import brl, brl_compacto, numero, pct
+from despesas.indicadores import status_divida, status_limite, status_meta, status_minimo
+from despesas.painel import (AZUL, CINZA, assinatura, aviso_demonstracao, cabecalho, carregar_compras,
+                             carregar_despesa, carregar_indicadores, coletado_em, estilo_grafico, ler_metadados,
+                             lista_pontos, md, medidor, mostrar, pasta_dados, selo, sem_dados, seletor_ano, tabela)
 
 PASTA = pasta_dados()
 meta = ler_metadados(PASTA)
@@ -25,9 +26,9 @@ nome_ente = meta.get("nome_ente", config.NOME_ENTE)
 cidade = nome_ente.split(" - ")[0]
 QUADRIMESTRES = {1: "jan–abr", 2: "mai–ago", 3: "set–dez"}
 
-st.title(f"{cidade} em números")
 ind = carregar_indicadores(str(PASTA), assinatura(PASTA / "fIndicadores.csv"))
 if ind.empty or not (ind["relatorio"] == "RREO").any():
+    st.title(f"{cidade} em números")
     sem_dados()
 
 
@@ -51,42 +52,12 @@ def pp(v: float | None, casas: int = 2) -> str:
     return "–" if v is None else f"{numero(v, casas)}%"
 
 
-def medidor(linhas: list[tuple[str, str, float, float]], nome_total: str, nome_feito: str, alt: str,
-            percentual: bool = False, marca: float | None = None) -> None:
-    """Barras de progresso: faixa de fundo = total (previsto), barra azul = realizado.
-
-    `linhas` = (título, detalhe, total, realizado), de cima para baixo. O título fica ACIMA de cada barra
-    (e não no eixo), para a barra usar a largura toda também no celular.
-    """
-    cats = [f"l{i}" for i in range(len(linhas))]
-    total = [100.0 if percentual else t / 1e6 for _, _, t, _ in linhas]
-    feito = [100 * f / t if percentual else f / 1e6 for _, _, t, f in linhas]
-    fig = go.Figure()
-    fig.add_bar(y=cats, x=total, orientation="h", width=0.28, name=nome_total,
-                marker=dict(color=AZUL_TRILHA, cornerradius=4), customdata=[brl(t) for _, _, t, _ in linhas],
-                hovertemplate="%{customdata}")
-    fig.add_bar(y=cats, x=feito, orientation="h", width=0.28, name=nome_feito,
-                marker=dict(color=AZUL, cornerradius=4), customdata=[brl(f) for _, _, _, f in linhas],
-                hovertemplate="%{customdata}")
-    for cat, (titulo, detalhe, _, _) in zip(cats, linhas):
-        fig.add_annotation(x=0, y=cat, xref="x", yref="y", xanchor="left", yanchor="bottom", yshift=16,
-                           showarrow=False, align="left", font=dict(size=12),
-                           text=f"<b>{titulo}</b><br>{detalhe}")
-    if marca is not None:
-        fig.add_vline(x=marca, line_dash="dot", line_width=1.5, line_color=CINZA)
-    fig.update_layout(barmode="overlay", hovermode="y unified")
-    fig.update_yaxes(showticklabels=False, autorange="reversed", title=None)
-    fig.update_xaxes(range=[0, 100] if percentual else None, ticksuffix="%" if percentual else "",
-                     tickformat=",.0f", title=None if percentual else "R$ milhões")
-    estilo_grafico(fig, 110 + 92 * len(linhas))
-    fig.update_layout(margin=dict(t=44))  # legenda no topo, acima do primeiro título
-    mostrar(fig, alt=alt)
-
-
 # ---------------------------------------------------------------- filtro e período
 anos = sorted(rreo.index.get_level_values("ano").unique().tolist(), reverse=True)
-filtro, _ = st.columns([1, 4])
-ano = filtro.selectbox("Exercício", anos)
+ano = cabecalho(f"{cidade} em números",
+                "Como a prefeitura arrecada e gasta, segundo os relatórios oficiais que ela mesma envia ao "
+                "Tesouro Nacional, e o que merece atenção.",
+                seletor=lambda coluna: seletor_ano(coluna, anos, "Exercício"))
 
 bim = int(max(p for a, p in rreo.index if a == ano))
 r = rreo.loc[(ano, bim)]
@@ -101,11 +72,47 @@ if rgf is not None and ano in rgf.index.get_level_values("ano"):
 
 ate_rreo = f"até {NOMES_MES[mes_rreo].lower()}/{ano}"
 ate_rgf = f"até {NOMES_MES[4 * quad].lower()}/{ano}" if quad else "–"
-st.caption(
-    f"Orçamento e metas fiscais de {nome_ente} · Fonte: Tesouro Nacional (SICONFI), relatórios oficiais do "
-    f"município · RREO {ate_rreo} · RGF {ate_rgf} · atualizado em {coletado_em(meta)}"
-)
+st.caption(md(f"Fonte: Tesouro Nacional (SICONFI) · RREO {ate_rreo} · RGF {ate_rgf} · atualizado em "
+              f"{coletado_em(meta)}"))
 aviso_demonstracao(meta)
+
+# ------------------------------------------------------------- pontos de atenção
+arq_fato = PASTA / "fDespesa.parquet"
+investimento = dotacao_investimento = None
+if arq_fato.exists():
+    fato, _ = carregar_despesa(str(PASTA), assinatura(arq_fato))
+    inv = fato[(fato["ano"] == ano) & (fato["mes"] == mes_rreo) & (fato["natureza_despesa"].str[:2] == "44")]
+    if len(inv):
+        investimento = float(inv["liquidado"].sum())
+        dotacao_investimento = float(inv["dotacao_atualizada"].sum())
+
+pontos = pontos_fiscais(r.to_dict(), None if e is None else e.to_dict(), None if leg is None else leg.to_dict(),
+                        fechado_rreo, ate_rreo, f"RGF {ate_rgf}", mes_rreo, ano,
+                        investimentos=(dotacao_investimento, investimento) if dotacao_investimento else None)
+contratacoes, contratos = carregar_compras(str(PASTA), assinatura(PASTA / "fContratacoes.csv"))
+analise_compras = analisar_compras(contratacoes, contratos, ano) if len(contratacoes) else None
+pontos_pncp = pontos_compras(analise_compras) if analise_compras is not None else None
+
+with st.container(border=True):
+    st.subheader("Pontos de atenção", anchor="pontos-de-atencao")
+    st.caption("Números que passam de um limite da lei ou que merecem acompanhamento. Não são, por si só, "
+               "irregularidades: são o ponto de partida para perguntar e conferir na fonte.")
+    esq, dir_ = st.columns(2, gap="large")
+    with esq:
+        st.markdown("**Contas públicas**")
+        lista_pontos(pontos, "Nenhum limite ultrapassado e nenhum mínimo descumprido nos relatórios.")
+    with dir_:
+        st.markdown(f"**Compras e contratos em {ano}**")
+        if pontos_pncp is None:
+            st.caption("Os dados de compras (PNCP) ainda não foram coletados.")
+        elif analise_compras.contratacoes.empty and analise_compras.contratos.empty:
+            st.caption(f"Nenhuma compra publicada no PNCP em {ano}. O portal acompanha as compras a partir de "
+                       f"{config.PNCP_INICIO[:4]}.")
+        else:
+            lista_pontos([p_ for p_ in pontos_pncp if p_.nivel != "info"][:3] or pontos_pncp[:2],
+                         "Nenhum ponto de atenção nas compras publicadas.")
+            st.page_link("paginas/compras.py", label="Ver compras e contratos", icon=":material/arrow_forward:")
+    st.page_link("paginas/sobre.py", label="Como cada ponto é calculado", icon=":material/info:")
 
 # ------------------------------------------------------ previsto x realizado no ano
 st.subheader(f"Previsto × realizado em {ano}")
@@ -131,14 +138,6 @@ k[0].metric("Superávit orçamentário" if (resultado or 0) >= 0 else "Déficit 
             help="Receita arrecadada menos despesa liquidada no período (RREO, demonstrativo simplificado).")
 k[1].metric("Receita corrente líquida", brl_compacto(valor(r, "rcl")), border=True,
             help="Receita dos últimos 12 meses, já descontados repasses obrigatórios. É a base dos limites da LRF.")
-arq_fato = PASTA / "fDespesa.parquet"
-investimento = None
-if arq_fato.exists():
-    fato, _ = carregar_despesa(str(PASTA), assinatura(arq_fato))
-    mes_msc = fato.loc[(fato["ano"] == ano) & (fato["natureza_despesa"].str[:2] == "44"), "mes"]
-    if (mes_msc == mes_rreo).any():
-        investimento = fato.loc[(fato["ano"] == ano) & (fato["mes"] == mes_rreo)
-                                & (fato["natureza_despesa"].str[:2] == "44"), "liquidado"].sum()
 k[2].metric("Investimentos liquidados", brl_compacto(investimento) if investimento is not None else "–", border=True,
             help="Obras, equipamentos e material permanente (grupo 4.4 da despesa), pela Matriz de Saldos Contábeis.")
 k[3].metric("Restos a pagar em aberto", brl_compacto(valor(r, "restos_a_pagar_saldo")), border=True,
@@ -288,34 +287,6 @@ for coluna, titulo, chave in [(esq, "Educação: % aplicado", "educacao"), (dir_
             t.columns = ["Ano", "Aplicado (%)", "Mínimo (%)"]
             tabela(t.iloc[::-1], pontos_percentuais=["Aplicado (%)", "Mínimo (%)"])
 
-# ------------------------------------------------------------- de onde vem o dinheiro
-st.subheader(f"De onde vem o dinheiro em {ano}")
-st.caption(f"Receita prevista para o ano × arrecadada {ate_rreo}, sem as receitas intraorçamentárias "
-           "(repasses entre órgãos do próprio município).")
-origens = []
-for chave, (_, nome) in ORIGENS_RECEITA.items():
-    if chave in ("correntes", "total"):
-        continue
-    prevista, arrecadada = valor(r, f"receita_{chave}_prevista"), valor(r, f"receita_{chave}_realizada")
-    if prevista:
-        origens.append((nome, prevista, arrecadada or 0.0))
-componentes = ["tributaria", "uniao", "estado", "outras_publicas", "contribuicoes", "patrimonial"]
-correntes_prev, correntes_real = valor(r, "receita_correntes_prevista"), valor(r, "receita_correntes_realizada")
-if correntes_prev and all(valor(r, f"receita_{c}_prevista") is not None for c in componentes):
-    resto_prev = correntes_prev - sum(valor(r, f"receita_{c}_prevista") for c in componentes)
-    resto_real = (correntes_real or 0) - sum(valor(r, f"receita_{c}_realizada") or 0 for c in componentes)
-    if resto_prev > 0:
-        origens.append(("Outras receitas correntes (serviços, multas, etc.)", resto_prev, resto_real))
-if origens:
-    o = pd.DataFrame(origens, columns=["origem", "prevista", "arrecadada"]).sort_values("prevista", ascending=False)
-    medidor([(nome, f"{brl_compacto(a)} arrecadados de {brl_compacto(p)} previstos ({pct(razao(a, p))})", p, a)
-             for nome, p, a in o.itertuples(index=False)],
-            "Prevista para o ano", "Arrecadada", alt=f"Receita prevista e arrecadada por origem em {ano}")
-    with st.expander("Ver dados em tabela"):
-        t = o.rename(columns={"origem": "Origem", "prevista": "Prevista", "arrecadada": "Arrecadada"})
-        t["% arrecadado"] = t["Arrecadada"] / t["Prevista"]
-        tabela(t, monetarias=["Prevista", "Arrecadada"], percentuais=["% arrecadado"])
-
 # ------------------------------------------------------------------- como ler
 with st.expander("Como ler estes números"):
     st.markdown(
@@ -337,5 +308,14 @@ Veja também o [portal da transparência]({config.URL_PORTAL_TRANSPARENCIA}).
 """
     )
 
-st.page_link("paginas/despesa.py", label="Ver a despesa detalhada (por função, natureza e poder)",
-             icon=":material/arrow_forward:")
+st.subheader("Explore")
+atalhos = [
+    ("paginas/receitas.py", "Receitas", ":material/payments:", "Impostos e repasses mês a mês, previsto × arrecadado."),
+    ("paginas/despesa.py", "Despesas", ":material/receipt_long:", "Por função, natureza e órgão, com o demonstrativo."),
+    ("paginas/compras.py", "Compras e contratos", ":material/gavel:", "Licitações, dispensas e contratos no PNCP."),
+    ("paginas/comparar.py", "Comparar cidades", ":material/map:", "Sua cidade ao lado de outra do Paraná, no mapa."),
+]
+for coluna, (pagina, rotulo, icone, texto) in zip(st.columns(4), atalhos):
+    with coluna.container(border=True):
+        st.page_link(pagina, label=rotulo, icon=icone)
+        st.caption(texto)
