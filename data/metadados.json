@@ -3,8 +3,8 @@
   "nome_ente": "Guarapuava - PR",
   "fonte": "Tesouro Nacional / SICONFI – MSC orçamentária, RREO (Anexos 1, 3 e 14) e RGF (Anexos 1 e 2)",
   "url_api": "https://apidatalake.tesouro.gov.br/ords/siconfi/tt/",
-  "coletado_em": "2026-11-12T18:41:25+00:00",
-  "versao_coletor": "1.2.1",
+  "coletado_em": "2026-11-12T20:18:44+00:00",
+  "versao_coletor": "1.2.3",
   "primeiro_mes": "2019-01",
   "ultimo_mes": "2026-09",
   "meses": 93,
@@ -139,22 +139,25 @@
       ]
     },
     "pendentes": [],
+    "contratos_pendentes": [],
+    "politica_fornecedor": "nome-sem-documento",
+    "renovar_contratos": [],
     "falhas": [],
     "modalidades_recusadas": [],
     "contratacoes": 977,
     "contratos": 1061,
     "orgaos": [
+      "76178037000176",
       "04916685000171",
       "15302270000124",
       "15302445000101",
       "75646273000107",
-      "76178037000176",
       "77774495000130",
       "79262341000195"
     ],
-    "coletado_em": "2026-11-12T19:11:55+00:00",
+    "coletado_em": "2026-11-12T20:58:56+00:00",
     "url_api": "https://pncp.gov.br/api/consulta/",
-    "requisicoes": 114
+    "requisicoes": 150
   },
   "comparativo": {
     "status": "parcial",
@@ -178,10 +181,10 @@
       "Ribeirão do Pinhal",
       "Santa Cruz de Monte Castelo"
     ],
-    "consultas_nesta_execucao": 1995,
+    "consultas_nesta_execucao": 0,
     "falhas_nesta_execucao": 0,
-    "coletado_em": "2026-11-12T19:11:55+00:00",
-    "requisicoes": 1963,
+    "coletado_em": "2026-11-12T20:58:56+00:00",
+    "requisicoes": 0,
     "url_api": "https://apidatalake.tesouro.gov.br/ords/siconfi/tt/"
   },
   "modulos_nesta_execucao": [
