@@ -41,10 +41,13 @@ quando um código não aparece, o indicador fica em branco – nada é estimado.
   mesmo fornecedor, prazo curto para propostas, licitações sem desconto, contratação direta, concentração),
   quem foi contratado em cada licitação ou dispensa (quando o contrato já está no PNCP), propostas abertas e links
   para cada publicação oficial.
-- **Comparar cidades**: mapa do Paraná (clique para escolher a cidade) e a sua cidade ao lado de outra em educação,
-  saúde, transporte, salários, investimentos e receita por habitante. Para cada indicador, uma faixa do 1º ao
-  último lugar (em cinco partes, nas cores do mapa) marca a posição das duas cidades, e o ranking completo fica numa
-  tabela. Os percentuais de educação e saúde vêm do resumo do RREO (Anexo 14), que só parte dos municípios
+- **Comparar cidades**: mapa do Paraná (clique para escolher a cidade) e a sua cidade ao lado de outra. A medida
+  principal de cada área (educação, saúde, transporte, investimentos, urbanismo, assistência) é o **peso no
+  orçamento**: de cada R$ 100 gastos no ano, quanto foi para a área; o gasto por habitante aparece como dado de
+  apoio. Também entram os mínimos de educação e saúde, o gasto com pessoal (% da RCL) e a receita por habitante. A
+  comparação pode ser com todo o Paraná ou **só com cidades do mesmo porte** (faixas de população). Para cada
+  indicador, uma faixa do 1º ao último lugar (em cinco partes, nas cores do mapa) marca a posição das duas cidades,
+  e o ranking completo fica numa tabela. Os percentuais de educação e saúde vêm do resumo do RREO (Anexo 14), que só parte dos municípios
   preenche: em 2025, cerca de 220 de 393.
 - **Sobre os dados**: fontes, atualização, conferência MSC × RREO, critérios dos pontos de atenção, LGPD e downloads.
 

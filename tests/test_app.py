@@ -152,7 +152,18 @@ def test_comparar_cidades(pasta, monkeypatch):
     ranking = _tabela_com(at, "Posição")
     assert ranking["Posição"].is_monotonic_increasing and ranking["Posição"].iloc[0] == 1
     assert set(ranking["Destaque"]) >= {"Sua cidade", "Comparada"}
-    assert any(" · " in str(v) and "º" in str(v) for v in _tabela_com(at, "Mediana PR").iloc[:, 1])
+    assert any(" · " in str(v) and "º" in str(v) for v in _tabela_com(at, "Mediana").iloc[:, 1])
+    resumo = _tabela_com(at, "Mediana")
+    assert "Educação (% do gasto)" in set(resumo["Indicador"])        # peso no orçamento é a medida principal
+    assert not resumo["Indicador"].str.contains("Salários \\(R\\$/hab", regex=True).any()  # sem salários por hab.
+    assert "Por habitante:" in " ".join(c.value for c in at.caption)  # gasto por habitante como dado de apoio
+
+    # só cidades do mesmo porte: posições e medianas dentro do grupo
+    next(r for r in at.radio if r.label == "Comparar entre").set_value("Cidades do mesmo porte").run()
+    assert not at.exception
+    assert any("mesmo porte" in s.value for s in at.subheader)
+    assert any("Mediana do grupo" in c.value for c in at.caption)
+    assert any("Posições e medianas calculadas entre" in c.value for c in at.caption)
 
 
 def test_sobre_os_dados(pasta, monkeypatch):

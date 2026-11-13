@@ -16,6 +16,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import logging
+import math
 from pathlib import Path
 
 import pandas as pd
@@ -45,32 +46,53 @@ FUNCOES = {"12": "educacao", "10": "saude", "26": "transporte", "15": "urbanismo
            "06": "seguranca", "17": "saneamento", "18": "ambiental", "13": "cultura", "27": "esporte",
            "20": "agricultura", "04": "administracao"}
 
-# Indicadores exibidos: chave, nome, unidade, tema, referência legal (linha no gráfico)
+# Indicadores exibidos. A medida principal de cada área é o PESO NO ORÇAMENTO: de cada R$ 100 gastos no ano
+# (despesa liquidada, sem as intraorçamentárias), quantos foram para a área. Ela não depende do tamanho da cidade.
+# O gasto por habitante fica como dado secundário ("secundario"): cidades pequenas sempre gastam mais por habitante,
+# porque têm custos fixos e recebem mais repasses por pessoa. "referencia" = limite ou mínimo da lei (linha no gráfico).
 INDICADORES = [
-    {"chave": "educacao_hab", "nome": "Educação: gasto por habitante", "curto": "Educação (R$/hab.)",
-     "unidade": "R$/hab", "tema": "Educação"},
+    {"chave": "educacao_peso", "nome": "Educação: peso no orçamento", "curto": "Educação (% do gasto)",
+     "unidade": "%", "tema": "Educação", "secundario": "educacao_hab"},
     {"chave": "educacao_pct", "nome": "Educação: % da receita de impostos", "curto": "Educação (% impostos)",
      "unidade": "%", "tema": "Educação", "referencia": (25.0, "mínimo 25%")},
-    {"chave": "saude_hab", "nome": "Saúde: gasto por habitante", "curto": "Saúde (R$/hab.)", "unidade": "R$/hab",
-     "tema": "Saúde"},
+    {"chave": "saude_peso", "nome": "Saúde: peso no orçamento", "curto": "Saúde (% do gasto)", "unidade": "%",
+     "tema": "Saúde", "secundario": "saude_hab"},
     {"chave": "saude_pct", "nome": "Saúde: % da receita de impostos", "curto": "Saúde (% impostos)", "unidade": "%",
      "tema": "Saúde", "referencia": (15.0, "mínimo 15%")},
-    {"chave": "transporte_hab", "nome": "Transporte: gasto por habitante", "curto": "Transporte (R$/hab.)",
-     "unidade": "R$/hab", "tema": "Transporte"},
+    {"chave": "transporte_peso", "nome": "Transporte: peso no orçamento", "curto": "Transporte (% do gasto)",
+     "unidade": "%", "tema": "Transporte", "secundario": "transporte_hab"},
     {"chave": "pessoal_pct", "nome": "Salários e encargos: % da receita corrente líquida", "curto": "Salários (% RCL)",
      "unidade": "%", "tema": "Salários", "referencia": (54.0, "limite 54%")},
-    {"chave": "pessoal_hab", "nome": "Salários e encargos: gasto por habitante", "curto": "Salários (R$/hab.)",
-     "unidade": "R$/hab", "tema": "Salários"},
-    {"chave": "investimento_hab", "nome": "Investimentos (obras e equipamentos) por habitante",
-     "curto": "Investimentos (R$/hab.)", "unidade": "R$/hab", "tema": "Investimento"},
-    {"chave": "urbanismo_hab", "nome": "Urbanismo por habitante", "curto": "Urbanismo (R$/hab.)", "unidade": "R$/hab",
-     "tema": "Cidade"},
-    {"chave": "assistencia_hab", "nome": "Assistência social por habitante", "curto": "Assistência (R$/hab.)",
-     "unidade": "R$/hab", "tema": "Cidade"},
+    {"chave": "investimento_peso", "nome": "Investimentos (obras e equipamentos): peso no orçamento",
+     "curto": "Investimento (% do gasto)", "unidade": "%", "tema": "Investimento", "secundario": "investimento_hab"},
+    {"chave": "urbanismo_peso", "nome": "Urbanismo: peso no orçamento", "curto": "Urbanismo (% do gasto)",
+     "unidade": "%", "tema": "Cidade", "secundario": "urbanismo_hab"},
+    {"chave": "assistencia_peso", "nome": "Assistência social: peso no orçamento", "curto": "Assistência (% do gasto)",
+     "unidade": "%", "tema": "Cidade", "secundario": "assistencia_hab"},
     {"chave": "rcl_hab", "nome": "Receita corrente líquida por habitante", "curto": "Receita (RCL, R$/hab.)",
      "unidade": "R$/hab", "tema": "Receita"},
 ]
-INDICADORES_POR_CHAVE = {i["chave"]: i for i in INDICADORES}
+# Gasto por habitante: dado secundário de cada área (e opção no ranking completo).
+SECUNDARIOS = [
+    {"chave": "educacao_hab", "nome": "Educação: gasto por habitante", "curto": "Educação (R$/hab.)", "unidade": "R$/hab"},
+    {"chave": "saude_hab", "nome": "Saúde: gasto por habitante", "curto": "Saúde (R$/hab.)", "unidade": "R$/hab"},
+    {"chave": "transporte_hab", "nome": "Transporte: gasto por habitante", "curto": "Transporte (R$/hab.)",
+     "unidade": "R$/hab"},
+    {"chave": "investimento_hab", "nome": "Investimentos: gasto por habitante", "curto": "Investimentos (R$/hab.)",
+     "unidade": "R$/hab"},
+    {"chave": "urbanismo_hab", "nome": "Urbanismo: gasto por habitante", "curto": "Urbanismo (R$/hab.)",
+     "unidade": "R$/hab"},
+    {"chave": "assistencia_hab", "nome": "Assistência social: gasto por habitante", "curto": "Assistência (R$/hab.)",
+     "unidade": "R$/hab"},
+]
+INDICADORES_POR_CHAVE = {i["chave"]: i for i in INDICADORES + SECUNDARIOS}
+
+# Faixas de porte (população): "cidades do mesmo porte" = mesma faixa. Uma faixa com menos de PORTE_MINIMO cidades
+# (Curitiba é a única com mais de 900 mil) usa as PORTE_VIZINHAS cidades de população mais próxima.
+FAIXAS_PORTE = [(20_000, "com até 20 mil habitantes"), (50_000, "de 20 mil a 50 mil habitantes"),
+                (100_000, "de 50 mil a 100 mil habitantes"), (900_000, "de 100 mil a 900 mil habitantes"),
+                (float("inf"), "com mais de 900 mil habitantes")]
+PORTE_MINIMO, PORTE_VIZINHAS = 8, 12
 
 
 def ano_comparativo(hoje: dt.date) -> int:
@@ -300,8 +322,37 @@ def etapa_entregue(etapa: str, info: dict) -> bool | None:
 
 
 # ------------------------------------------------------------------ indicadores para o portal
+def faixa_de_porte(populacao: float) -> str | None:
+    """Faixa de população, para usar depois de "cidades" ("de 100 mil a 900 mil habitantes"); None sem população."""
+    if populacao is None or pd.isna(populacao):
+        return None
+    return next(nome for limite, nome in FAIXAS_PORTE if populacao <= limite)
+
+
+def cidades_do_mesmo_porte(populacao: pd.Series, cod: str) -> tuple[list[str], str]:
+    """Códigos das cidades do mesmo porte que `cod` (incluída) e uma frase que explica o grupo.
+
+    `populacao`: série indexada pelo código IBGE, só com os municípios que podem entrar na comparação.
+    """
+    pop = pd.to_numeric(populacao, errors="coerce").dropna()
+    if cod not in pop.index:
+        return list(pop.index), "todos os municípios com dados"
+    faixa = faixa_de_porte(pop[cod])
+    grupo = [c for c, v in pop.items() if faixa_de_porte(v) == faixa]
+    if len(grupo) >= PORTE_MINIMO:
+        return grupo, f"{len(grupo)} cidades {faixa}"
+    # faixa quase vazia: as cidades de população mais próxima (em proporção, não em número de habitantes)
+    distancia = (pop.map(math.log) - math.log(pop[cod])).abs().sort_values(kind="stable")
+    grupo = list(distancia.index[:PORTE_VIZINHAS])
+    return grupo, f"as {len(grupo)} cidades com população mais próxima"
+
+
 def tabela_indicadores(dados: pd.DataFrame, lista: pd.DataFrame, ano: int) -> pd.DataFrame:
-    """Uma linha por município com os indicadores do ano (por habitante usa a população do RREO)."""
+    """Uma linha por município com os indicadores do ano (por habitante usa a população do RREO).
+
+    Peso no orçamento (`<área>_peso`) = despesa liquidada na função ÷ despesa liquidada total, em %, as duas do
+    Balanço Anual (DCA Anexo I-E, sem as intraorçamentárias). Investimentos: grupo 4.4 do Anexo I-D ÷ o mesmo total.
+    """
     d = dados[dados["ano"].astype(int) == ano]
     largo = d.pivot_table(index="cod_ibge", columns="chave", values="valor", aggfunc="first")
     base = lista[["cod_ibge", "municipio", "populacao"]].rename(columns={"populacao": "populacao_ibge"}).copy()
@@ -312,10 +363,15 @@ def tabela_indicadores(dados: pd.DataFrame, lista: pd.DataFrame, ano: int) -> pd
     por_hab = lambda col: pd.to_numeric(base[col], errors="coerce") / pop if col in base else float("nan")  # noqa: E731
     for codigo, nome in FUNCOES.items():
         base[f"{nome}_hab"] = por_hab(f"funcao_{codigo}")
-    base["pessoal_hab"] = por_hab("pessoal_valor")
     base["investimento_hab"] = por_hab("investimentos")
     base["rcl_hab"] = por_hab("rcl")
     base["despesa_hab"] = por_hab("despesa_total")
+    total = pd.to_numeric(base["despesa_total"], errors="coerce") if "despesa_total" in base else None
+    peso = lambda col: (pd.to_numeric(base[col], errors="coerce") / total * 100  # noqa: E731
+                        if col in base and total is not None else float("nan"))
+    for codigo, nome in FUNCOES.items():
+        base[f"{nome}_peso"] = peso(f"funcao_{codigo}")
+    base["investimento_peso"] = peso("investimentos")
     for coluna in ("educacao_pct", "saude_pct", "pessoal_pct"):
         if coluna not in base:
             base[coluna] = float("nan")

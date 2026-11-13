@@ -32,10 +32,10 @@ VERDE_AGUA = "#1baf7a"                    # 3ª série
 # se mudar um, mude o outro.
 TOKENS = {
     "light": {"serie": [AZUL, LARANJA, VERDE_AGUA], "superficie": "#f5f8fc", "tinta": "#15253b",
-              "tinta2": "#4a586c", "apagado": "#898781", "sem_dado": "#e1e0d9", "grade": "#e1e0d9",
+              "tinta2": "#4a586c", "apagado": "#898781", "sem_dado": "#e1e0d9", "grade": "#e1e0d9", "fora": "#e6ebf2",
               "sequencial": ["#b7d3f6", "#6da7ec", "#2a78d6", "#1c5cab", "#104281"]},
     "dark": {"serie": ["#3987e5", "#d95926", "#199e70"], "superficie": "#0d1626", "tinta": "#e7edf5",
-             "tinta2": "#b9c5d6", "apagado": "#898781", "sem_dado": "#383835", "grade": "#2c2c2a",
+             "tinta2": "#b9c5d6", "apagado": "#898781", "sem_dado": "#383835", "grade": "#2c2c2a", "fora": "#1b2537",
              "sequencial": ["#104281", "#1c5cab", "#2a78d6", "#6da7ec", "#b7d3f6"]},
 }
 

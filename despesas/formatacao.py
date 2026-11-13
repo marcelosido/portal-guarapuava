@@ -46,6 +46,11 @@ def pct(fracao: float, casas: int = 1) -> str:
     return f"{numero(fracao * 100, casas)}%"
 
 
+def contagem(n: int, singular: str, plural: str) -> str:
+    """Número com a palavra concordando: 1 licitação · 3 licitações · 1.061 licitações"""
+    return f"{numero(n, 0)} {singular if n == 1 else plural}"
+
+
 def razao(numerador: float, denominador: float) -> float:
     """Divisão segura: devolve NaN quando o denominador é zero."""
     return numerador / denominador if denominador else float("nan")

@@ -3,8 +3,15 @@
 import pandas as pd
 
 from despesas import alertas, indicadores as ind
+from despesas.formatacao import contagem
 from despesas.pncp import COLS_CONTRATACOES, COLS_CONTRATOS, tipar_contratacoes, tipar_contratos
 from tests import fixtures_api as fx
+
+
+def test_contagem_concorda_com_o_numero():
+    assert contagem(1, "licitação", "licitações") == "1 licitação"
+    assert contagem(0, "licitação", "licitações") == "0 licitações"
+    assert contagem(1061, "contrato", "contratos") == "1.061 contratos"
 
 
 def test_dias_uteis_sem_feriados():
@@ -74,6 +81,10 @@ def test_regras_de_compras():
     chaves = [p.chave for p in alertas.pontos_compras(a)]
     assert chaves[:3] == ["emergencia", "recorrentes", "prazo"] and "direta" in chaves and "desconto" in chaves
     assert "concentracao" in chaves and "contratos_incompletos" not in chaves
+    titulos = [p.titulo for p in alertas.pontos_compras(a)]   # um caso de cada: a frase fica no singular
+    assert titulos[:3] == ["1 contratação emergencial em 2026", "1 fornecedor com 3 ou mais dispensas por valor",
+                           "1 licitação com prazo curto para propostas"]
+    assert "1 licitação homologada sem desconto" in titulos
 
     # contratos de algum órgão ainda em coleta: as regras sobre fornecedores ficam suspensas e o motivo aparece
     incompleta = alertas.analisar_compras(tipar_contratacoes(c), tipar_contratos(k), 2026, orgaos_pendentes=["Prefeitura"])

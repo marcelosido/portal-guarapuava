@@ -17,7 +17,7 @@ from despesas import config
 from despesas.alertas import (MIN_DISPENSAS_MESMO_FORNECEDOR, PRAZO_MINIMO_DIAS_UTEIS, analisar_compras, datas,
                               pontos_compras)
 from despesas.dicionarios import SIGLAS_MES
-from despesas.formatacao import brl, brl_compacto, numero, pct, razao
+from despesas.formatacao import brl, brl_compacto, contagem, numero, pct, razao
 from despesas.painel import (assinatura, cabecalho, carregar_compras, estilo_grafico, ler_metadados, md, mostrar,
                              nome_curto, orgaos_sem_contratos, pasta_dados, sem_acento, selo_md, seletor_ano, tabela,
                              tema)
@@ -120,14 +120,14 @@ with st.container(border=True):
     for ponto in pontos:
         st.markdown(f"{selo_md(ponto.nivel)} **{md(ponto.titulo)}**  \n{md(ponto.detalhe)}")
         if ponto.chave == "emergencia":
-            with st.expander(f"Ver as {len(a.emergenciais)} contratações emergenciais"):
+            with st.expander(f"Ver {contagem(len(a.emergenciais), 'contratação emergencial', 'contratações emergenciais')}"):
                 t = a.emergenciais
                 tabela(pd.DataFrame({"Publicação": data_br(t["data_publicacao"]).values, "Órgão": t["orgao_nome"].values,
                                      "Objeto": t["objeto"].values, "Valor estimado": t["valor_estimado"].values,
                                      "Situação": t["situacao"].values, "PNCP": com_link(t).values}),
                        monetarias=["Valor estimado"], colunas={"PNCP": LINK, "Objeto": OBJETO})
         elif ponto.chave == "recorrentes":
-            with st.expander(f"Ver os {len(a.recorrentes)} fornecedores"):
+            with st.expander(f"Ver {contagem(len(a.recorrentes), 'fornecedor', 'fornecedores')}"):
                 t = a.recorrentes
                 tabela(pd.DataFrame({"Fornecedor": t["fornecedor_nome"].values, "CNPJ": t["fornecedor_doc"].values,
                                      "Contratos de dispensa": t["contratos"].values, "Valor somado": t["valor"].values,
@@ -136,7 +136,7 @@ with st.container(border=True):
                 st.caption(f"Fornecedores pessoa jurídica com {MIN_DISPENSAS_MESMO_FORNECEDOR} ou mais contratos "
                            "ligados a dispensas por valor (art. 75, I e II) no ano.")
         elif ponto.chave == "prazo":
-            with st.expander(f"Ver as {len(a.prazo_curto)} licitações"):
+            with st.expander(f"Ver {contagem(len(a.prazo_curto), 'licitação', 'licitações')}"):
                 t = a.prazo_curto
                 tabela(pd.DataFrame({"Publicação": data_br(t["data_publicacao"]).values,
                                      "Fim das propostas": data_br(t["data_encerramento"]).values,
@@ -148,7 +148,7 @@ with st.container(border=True):
                            f"descontados, então o prazo real pode ser ainda menor. Mínimo legal: {PRAZO_MINIMO_DIAS_UTEIS} "
                            "dias úteis (compras pelo menor preço) e mais para serviços e obras.")
         elif ponto.chave == "desconto":
-            with st.expander(f"Ver as {len(a.sem_desconto)} licitações"):
+            with st.expander(f"Ver {contagem(len(a.sem_desconto), 'licitação', 'licitações')}"):
                 t = a.sem_desconto
                 tabela(pd.DataFrame({"Publicação": data_br(t["data_publicacao"]).values, "Modalidade": t["modalidade"].values,
                                      "Objeto": t["objeto"].values, "Estimado": t["valor_estimado"].values,

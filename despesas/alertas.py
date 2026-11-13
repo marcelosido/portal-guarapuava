@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from .formatacao import brl_compacto, numero, pct
+from .formatacao import brl_compacto, contagem, numero, pct
 from .indicadores import normalizar, status_divida, status_limite, status_meta, status_minimo
 from .pncp import CONTRATACAO_DIRETA, LICITACOES
 
@@ -238,19 +238,22 @@ def pontos_compras(a: AnaliseCompras) -> list[Ponto]:
     pontos: list[Ponto] = []
     pagina = "paginas/compras.py"
     if len(a.emergenciais):
-        pontos.append(Ponto("alerta", "Compras", f"{len(a.emergenciais)} contratações emergenciais em {a.ano}",
+        emergenciais = contagem(len(a.emergenciais), "contratação emergencial", "contratações emergenciais")
+        pontos.append(Ponto("alerta", "Compras", f"{emergenciais} em {a.ano}",
                             f"Somam {brl_compacto(a.emergenciais['valor_estimado'].fillna(0).sum())} estimados. A dispensa por "
                             "emergência (art. 75, VIII, da Lei 14.133) exige justificativa e vale por até um ano.",
                             pagina, len(a.emergenciais), "Amparo legal: art. 75, VIII.", "emergencia"))
     if len(a.recorrentes) and not a.orgaos_pendentes:
         pontos.append(Ponto("alerta", "Compras",
-                            f"{len(a.recorrentes)} fornecedores com {MIN_DISPENSAS_MESMO_FORNECEDOR} ou mais dispensas por valor",
+                            f"{contagem(len(a.recorrentes), 'fornecedor', 'fornecedores')} com "
+                            f"{MIN_DISPENSAS_MESMO_FORNECEDOR} ou mais dispensas por valor",
                             "Várias contratações diretas com a mesma empresa no ano podem ser legítimas, mas merecem "
                             "conferência: a lei proíbe dividir uma compra para caber no limite da dispensa (art. 75, § 1º).",
                             pagina, len(a.recorrentes), "Contratos ligados a dispensas do art. 75, I e II.",
                             "recorrentes"))
     if len(a.prazo_curto):
-        pontos.append(Ponto("alerta", "Compras", f"{len(a.prazo_curto)} licitações com prazo curto para propostas",
+        pontos.append(Ponto("alerta", "Compras",
+                            f"{contagem(len(a.prazo_curto), 'licitação', 'licitações')} com prazo curto para propostas",
                             f"Menos de {PRAZO_MINIMO_DIAS_UTEIS} dias úteis entre a publicação no PNCP e o fim das propostas, "
                             "o menor prazo da lei (art. 55). Prazo curto reduz a concorrência; confira o edital.",
                             pagina, len(a.prazo_curto), "Pregões e concorrências; feriados não descontados.",
@@ -262,7 +265,8 @@ def pontos_compras(a: AnaliseCompras) -> list[Ponto]:
                             f"{brl_compacto(a.total_valor)}. São legais em casos previstos na lei, sem disputa entre empresas.",
                             pagina, a.direta_qtd, "Modalidades 8 (dispensa) e 9 (inexigibilidade).", "direta"))
     if len(a.sem_desconto):
-        pontos.append(Ponto("info", "Compras", f"{len(a.sem_desconto)} licitações homologadas sem desconto",
+        homologadas = contagem(len(a.sem_desconto), "licitação homologada", "licitações homologadas")
+        pontos.append(Ponto("info", "Compras", f"{homologadas} sem desconto",
                             "O valor final ficou a menos de 1% do estimado, o que pode indicar pouca disputa.",
                             pagina, len(a.sem_desconto), "Homologado ≥ 99% do estimado.", "desconto"))
     if a.top5_participacao is not None and a.top5_participacao >= 0.5 and not a.orgaos_pendentes:
